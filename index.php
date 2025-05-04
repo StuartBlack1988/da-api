@@ -6,9 +6,21 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/error.log');
 
-// Log the request for debugging
+// Log PHP version and environment information
+error_log("PHP Version: " . PHP_VERSION);
+error_log("Document Root: " . $_SERVER['DOCUMENT_ROOT']);
+error_log("Script Filename: " . $_SERVER['SCRIPT_FILENAME']);
 error_log("Request URI: " . $_SERVER['REQUEST_URI']);
 error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
+
+// Test basic PHP functionality
+try {
+    error_log("Testing JSON encoding...");
+    json_encode(['test' => 'test']);
+    error_log("JSON encoding successful");
+} catch (Exception $e) {
+    error_log("JSON encoding failed: " . $e->getMessage());
+}
 
 // Set headers for JSON response
 header('Content-Type: application/json');
