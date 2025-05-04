@@ -28,4 +28,6 @@ $router->get('/hello/{name}', function($name) {
 header('Content-Type: application/json');
 
 // Run it!
-$router->run(); 
+$router->run();
+
+phpinfo(); 
