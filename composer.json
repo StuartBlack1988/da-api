@@ -1,0 +1,14 @@
+{
+    "name": "da-api/hello-world",
+    "description": "A simple PHP API with routing",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "bramus/router": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    }
+} 
