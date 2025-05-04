@@ -3,8 +3,7 @@
     "description": "A simple PHP API with routing",
     "type": "project",
     "require": {
-        "php": ">=7.4",
-        "bramus/router": "^1.6"
+        "php": ">=7.4"
     },
     "autoload": {
         "psr-4": {
