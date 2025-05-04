@@ -55,6 +55,6 @@
             "install-path": "../bramus/router"
         }
     ],
-    "dev": true,
+    "dev": false,
     "dev-package-names": []
 }

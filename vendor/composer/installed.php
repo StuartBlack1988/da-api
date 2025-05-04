@@ -1,13 +1,13 @@
 <?php return array(
     'root' => array(
         'name' => 'da-api/hello-world',
-        'pretty_version' => 'dev-main',
-        'version' => 'dev-main',
-        'reference' => 'b8ec9ba7db2e9e190674346a8c0c429e8318c301',
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => '56e77b324e0953de44299512ad40687a99f47fd3',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
-        'dev' => true,
+        'dev' => false,
     ),
     'versions' => array(
         'bramus/router' => array(
@@ -20,9 +20,9 @@
             'dev_requirement' => false,
         ),
         'da-api/hello-world' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => 'b8ec9ba7db2e9e190674346a8c0c429e8318c301',
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => '56e77b324e0953de44299512ad40687a99f47fd3',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
