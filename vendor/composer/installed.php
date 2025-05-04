@@ -3,7 +3,7 @@
         'name' => 'da-api/hello-world',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '4d2a02dc5dd0991acba7165cb1a717ccd2f2776c',
+        'reference' => 'd6105a1f1f33e2e1363bb8fb31ea75535a37b434',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'da-api/hello-world' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '4d2a02dc5dd0991acba7165cb1a717ccd2f2776c',
+            'reference' => 'd6105a1f1f33e2e1363bb8fb31ea75535a37b434',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
