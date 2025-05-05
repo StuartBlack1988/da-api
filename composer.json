@@ -3,7 +3,7 @@
     "description": "Dietitian Assist API with authentication",
     "type": "project",
     "require": {
-        "php": "8.2",
+        "php": ">=8.2.0 <8.3.0",
         "firebase/php-jwt": "^6.0",
         "vlucas/phpdotenv": "^5.5",
         "symfony/polyfill-ctype": "^1.27",
