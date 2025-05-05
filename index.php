@@ -1,27 +1,49 @@
 <?php
 
-// Enable error reporting and logging
+// Set error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/error.log');
 
-// Verify PHP version
-error_log("PHP Version: " . PHP_VERSION);
+// Create a custom error handler
+function customErrorHandler($errno, $errstr, $errfile, $errline) {
+    $logFile = __DIR__ . '/debug.log';
+    $message = date('Y-m-d H:i:s') . " - Error [$errno]: $errstr in $errfile on line $errline\n";
+    file_put_contents($logFile, $message, FILE_APPEND);
+    return false;
+}
 
-// Verify vendor directory
-$vendorPath = __DIR__ . '/vendor';
-$bootstrapPath = $vendorPath . '/symfony/polyfill-ctype/bootstrap.php';
+// Set the custom error handler
+set_error_handler('customErrorHandler');
 
-error_log("Vendor path: " . $vendorPath);
-error_log("Bootstrap path: " . $bootstrapPath);
-error_log("File exists: " . (file_exists($bootstrapPath) ? 'yes' : 'no'));
-error_log("Is readable: " . (is_readable($bootstrapPath) ? 'yes' : 'no'));
+// Debug information
+$debugInfo = [
+    'PHP Version' => PHP_VERSION,
+    'Current Directory' => __DIR__,
+    'Vendor Path' => __DIR__ . '/vendor',
+    'Bootstrap Path' => __DIR__ . '/vendor/symfony/polyfill-ctype/bootstrap.php',
+    'File Exists' => file_exists(__DIR__ . '/vendor/symfony/polyfill-ctype/bootstrap.php') ? 'yes' : 'no',
+    'Is Readable' => is_readable(__DIR__ . '/vendor/symfony/polyfill-ctype/bootstrap.php') ? 'yes' : 'no',
+    'File Permissions' => file_exists(__DIR__ . '/vendor/symfony/polyfill-ctype/bootstrap.php') ? 
+        substr(sprintf('%o', fileperms(__DIR__ . '/vendor/symfony/polyfill-ctype/bootstrap.php')), -4) : 'N/A'
+];
 
-// Load environment variables
-require_once __DIR__ . '/vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+// Write debug info to log
+$logFile = __DIR__ . '/debug.log';
+$logMessage = date('Y-m-d H:i:s') . " - Debug Information:\n";
+foreach ($debugInfo as $key => $value) {
+    $logMessage .= "$key: $value\n";
+}
+file_put_contents($logFile, $logMessage, FILE_APPEND);
+
+// Try to load the autoloader
+try {
+    require_once __DIR__ . '/vendor/autoload.php';
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+} catch (Exception $e) {
+    file_put_contents($logFile, date('Y-m-d H:i:s') . " - Exception: " . $e->getMessage() . "\n", FILE_APPEND);
+    throw $e;
+}
 
 // Set headers for JSON response
 header('Content-Type: application/json');
