@@ -6,6 +6,18 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/error.log');
 
+// Verify PHP version
+error_log("PHP Version: " . PHP_VERSION);
+
+// Verify vendor directory
+$vendorPath = __DIR__ . '/vendor';
+$bootstrapPath = $vendorPath . '/symfony/polyfill-ctype/bootstrap.php';
+
+error_log("Vendor path: " . $vendorPath);
+error_log("Bootstrap path: " . $bootstrapPath);
+error_log("File exists: " . (file_exists($bootstrapPath) ? 'yes' : 'no'));
+error_log("Is readable: " . (is_readable($bootstrapPath) ? 'yes' : 'no'));
+
 // Load environment variables
 require_once __DIR__ . '/vendor/autoload.php';
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
