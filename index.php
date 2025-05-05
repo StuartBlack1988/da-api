@@ -6,6 +6,11 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/error.log');
 
+// Load environment variables
+require_once __DIR__ . '/vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
 // Set headers for JSON response
 header('Content-Type: application/json');
 
@@ -23,16 +28,15 @@ try {
     // Split the URI into parts
     $uriParts = explode('/', $requestUri);
 
-    // Simple routing
+    // Include authentication routes
+    if ($uriParts[0] === 'auth') {
+        require_once __DIR__ . '/src/Auth/routes.php';
+        exit;
+    }
+
+    // Default response for root endpoint
     if (empty($uriParts[0])) {
-        echo json_encode(['message' => 'Welcome to the Hello World API']);
-    } elseif ($uriParts[0] === 'hello') {
-        if (empty($uriParts[1])) {
-            echo json_encode(['message' => 'Hello World!']);
-        } else {
-            $name = $uriParts[1];
-            echo json_encode(['message' => "Hello, $name!"]);
-        }
+        echo json_encode(['message' => 'Welcome to the Dietitian Assist API']);
     } else {
         http_response_code(404);
         echo json_encode(['error' => 'Not Found']);
