@@ -25,7 +25,7 @@ class AuthController {
         }
 
         // Check if user exists
-        $stmt = $this->db->prepare("SELECT userId FROM user WHERE email = ?");
+        $stmt = $this->db->prepare("SELECT userId FROM `User` WHERE email = ?");
         $stmt->execute([$data['email']]);
         if ($stmt->fetch()) {
             return ['error' => 'User already exists'];
@@ -35,7 +35,7 @@ class AuthController {
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
         // Create user
-        $stmt = $this->db->prepare("INSERT INTO user (email, password, name, surname) VALUES (?, ?, ?, ?)");
+        $stmt = $this->db->prepare("INSERT INTO `User` (email, password, name, surname) VALUES (?, ?, ?, ?)");
         $stmt->execute([$data['email'], $hashedPassword, $data['name'], $data['surname']]);
 
         return ['message' => 'User registered successfully'];
@@ -48,7 +48,7 @@ class AuthController {
         }
 
         // Get user
-        $stmt = $this->db->prepare("SELECT userId, password FROM user WHERE email = ?");
+        $stmt = $this->db->prepare("SELECT userId, password FROM `User` WHERE email = ?");
         $stmt->execute([$data['email']]);
         $user = $stmt->fetch();
 
@@ -57,7 +57,7 @@ class AuthController {
         }
 
         // Update last login
-        $stmt = $this->db->prepare("UPDATE user SET lastLogin = CURRENT_TIMESTAMP WHERE userId = ?");
+        $stmt = $this->db->prepare("UPDATE `User` SET lastLogin = CURRENT_TIMESTAMP WHERE userId = ?");
         $stmt->execute([$user['userId']]);
 
         // Generate JWT token
@@ -83,7 +83,7 @@ class AuthController {
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
             // Update password
-            $stmt = $this->db->prepare("UPDATE user SET password = ? WHERE userId = ?");
+            $stmt = $this->db->prepare("UPDATE `User` SET password = ? WHERE userId = ?");
             $stmt->execute([$hashedPassword, $userId]);
 
             return ['message' => 'Password updated successfully'];
@@ -99,7 +99,7 @@ class AuthController {
         }
 
         // Update user
-        $stmt = $this->db->prepare("UPDATE user SET email = ?, name = ?, surname = ? WHERE userId = ?");
+        $stmt = $this->db->prepare("UPDATE `User` SET email = ?, name = ?, surname = ? WHERE userId = ?");
         $stmt->execute([$data['email'], $data['name'] ?? '', $data['surname'] ?? '', $userId]);
 
         return ['message' => 'User updated successfully'];
