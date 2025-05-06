@@ -15,10 +15,6 @@ try {
     $username = $_ENV['DB_USER'];
     $password = $_ENV['DB_PASS'];
     
-    error_log("DSN: " . $dsn);
-    error_log("Username: " . $username);
-    error_log("Password provided: " . ($password ? 'yes' : 'no'));
-    
     $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -26,9 +22,9 @@ try {
     ];
     
     $db = new PDO($dsn, $username, $password, $options);
-    error_log("Database connection successful");
+    error_log("Database connection successful in auth routes");
 } catch (PDOException $e) {
-    error_log("Database connection error: " . $e->getMessage());
+    error_log("Database connection error in auth routes: " . $e->getMessage());
     error_log("Error code: " . $e->getCode());
     throw $e;
 }

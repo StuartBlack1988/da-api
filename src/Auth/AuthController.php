@@ -16,12 +16,12 @@ class AuthController {
 
     public function register($data) {
         // Validate input
-        if (empty($data['email']) || empty($data['password'])) {
-            return ['error' => 'Email and password are required'];
+        if (empty($data['email']) || empty($data['password']) || empty($data['name']) || empty($data['surname'])) {
+            return ['error' => 'Email, password, name, and surname are required'];
         }
 
         // Check if user exists
-        $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt = $this->db->prepare("SELECT userId FROM users WHERE email = ?");
         $stmt->execute([$data['email']]);
         if ($stmt->fetch()) {
             return ['error' => 'User already exists'];
@@ -31,8 +31,8 @@ class AuthController {
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
         // Create user
-        $stmt = $this->db->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
-        $stmt->execute([$data['email'], $hashedPassword]);
+        $stmt = $this->db->prepare("INSERT INTO users (email, password, name, surname) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$data['email'], $hashedPassword, $data['name'], $data['surname']]);
 
         return ['message' => 'User registered successfully'];
     }
@@ -44,7 +44,7 @@ class AuthController {
         }
 
         // Get user
-        $stmt = $this->db->prepare("SELECT id, password FROM users WHERE email = ?");
+        $stmt = $this->db->prepare("SELECT userId, password FROM users WHERE email = ?");
         $stmt->execute([$data['email']]);
         $user = $stmt->fetch();
 
@@ -52,8 +52,12 @@ class AuthController {
             return ['error' => 'Invalid credentials'];
         }
 
+        // Update last login
+        $stmt = $this->db->prepare("UPDATE users SET lastLogin = CURRENT_TIMESTAMP WHERE userId = ?");
+        $stmt->execute([$user['userId']]);
+
         // Generate JWT token
-        $token = $this->generateToken($user['id']);
+        $token = $this->generateToken($user['userId']);
 
         return [
             'message' => 'Login successful',
@@ -75,7 +79,7 @@ class AuthController {
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
             // Update password
-            $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE id = ?");
+            $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE userId = ?");
             $stmt->execute([$hashedPassword, $userId]);
 
             return ['message' => 'Password updated successfully'];
@@ -91,8 +95,8 @@ class AuthController {
         }
 
         // Update user
-        $stmt = $this->db->prepare("UPDATE users SET email = ? WHERE id = ?");
-        $stmt->execute([$data['email'], $userId]);
+        $stmt = $this->db->prepare("UPDATE users SET email = ?, name = ?, surname = ? WHERE userId = ?");
+        $stmt->execute([$data['email'], $data['name'] ?? '', $data['surname'] ?? '', $userId]);
 
         return ['message' => 'User updated successfully'];
     }
