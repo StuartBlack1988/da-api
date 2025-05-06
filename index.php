@@ -67,10 +67,23 @@ try {
     // Database test endpoint
     if ($uriParts[0] === 'system' && $uriParts[1] === 'db-test') {
         try {
+            // Debug environment variables
+            $envVars = [
+                'DB_HOST' => $_ENV['DB_HOST'] ?? 'not set in _ENV',
+                'DB_NAME' => $_ENV['DB_NAME'] ?? 'not set in _ENV',
+                'DB_USER' => $_ENV['DB_USER'] ?? 'not set in _ENV',
+                'DB_PASS' => $_ENV['DB_PASS'] ? '****' : 'not set in _ENV',
+                'getenv_DB_HOST' => getenv('DB_HOST') ?: 'not set in getenv',
+                'getenv_DB_NAME' => getenv('DB_NAME') ?: 'not set in getenv',
+                'getenv_DB_USER' => getenv('DB_USER') ?: 'not set in getenv',
+                'getenv_DB_PASS' => getenv('DB_PASS') ? '****' : 'not set in getenv'
+            ];
+
+            // Try to connect with explicit values
             $db = new PDO(
-                "mysql:host=" . getenv('DB_HOST') . ";dbname=" . getenv('DB_NAME'),
-                getenv('DB_USER'),
-                getenv('DB_PASS')
+                "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'],
+                $_ENV['DB_USER'],
+                $_ENV['DB_PASS']
             );
             $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             
@@ -81,9 +94,7 @@ try {
             echo json_encode([
                 'status' => 'success',
                 'message' => 'Database connection successful',
-                'db_host' => getenv('DB_HOST'),
-                'db_name' => getenv('DB_NAME'),
-                'db_user' => getenv('DB_USER')
+                'environment_variables' => $envVars
             ], JSON_PRETTY_PRINT);
         } catch (PDOException $e) {
             http_response_code(500);
@@ -91,9 +102,7 @@ try {
                 'status' => 'error',
                 'message' => 'Database connection failed',
                 'error' => $e->getMessage(),
-                'db_host' => getenv('DB_HOST'),
-                'db_name' => getenv('DB_NAME'),
-                'db_user' => getenv('DB_USER')
+                'environment_variables' => $envVars
             ], JSON_PRETTY_PRINT);
         }
         exit;
