@@ -64,6 +64,41 @@ try {
     // Split the URI into parts
     $uriParts = explode('/', $requestUri);
 
+    // Database test endpoint
+    if ($uriParts[0] === 'system' && $uriParts[1] === 'db-test') {
+        try {
+            $db = new PDO(
+                "mysql:host=" . getenv('DB_HOST') . ";dbname=" . getenv('DB_NAME'),
+                getenv('DB_USER'),
+                getenv('DB_PASS')
+            );
+            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            // Test query
+            $stmt = $db->query("SELECT 1");
+            $result = $stmt->fetch();
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Database connection successful',
+                'db_host' => getenv('DB_HOST'),
+                'db_name' => getenv('DB_NAME'),
+                'db_user' => getenv('DB_USER')
+            ], JSON_PRETTY_PRINT);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Database connection failed',
+                'error' => $e->getMessage(),
+                'db_host' => getenv('DB_HOST'),
+                'db_name' => getenv('DB_NAME'),
+                'db_user' => getenv('DB_USER')
+            ], JSON_PRETTY_PRINT);
+        }
+        exit;
+    }
+
     // System info endpoint
     if ($uriParts[0] === 'system' && $uriParts[1] === 'info') {
         echo json_encode([
