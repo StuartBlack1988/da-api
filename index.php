@@ -3,6 +3,8 @@
 // Set error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error.log');
 
 // Create a custom error handler
 function customErrorHandler($errno, $errstr, $errfile, $errline) {
@@ -61,6 +63,22 @@ try {
     
     // Split the URI into parts
     $uriParts = explode('/', $requestUri);
+
+    // System info endpoint
+    if ($uriParts[0] === 'system' && $uriParts[1] === 'info') {
+        echo json_encode([
+            'php_version' => PHP_VERSION,
+            'server_software' => $_SERVER['SERVER_SOFTWARE'],
+            'server_name' => $_SERVER['SERVER_NAME'],
+            'document_root' => $_SERVER['DOCUMENT_ROOT'],
+            'extensions' => get_loaded_extensions(),
+            'memory_limit' => ini_get('memory_limit'),
+            'max_execution_time' => ini_get('max_execution_time'),
+            'display_errors' => ini_get('display_errors'),
+            'error_reporting' => ini_get('error_reporting')
+        ], JSON_PRETTY_PRINT);
+        exit;
+    }
 
     // Include authentication routes
     if ($uriParts[0] === 'auth') {
