@@ -83,34 +83,38 @@ try {
     // Database test endpoint
     if ($uriParts[0] === 'system' && $uriParts[1] === 'db-test') {
         try {
-            // Debug environment variables
-            $envVars = [
-                'DB_HOST' => $_ENV['DB_HOST'] ?? 'not set in _ENV',
-                'DB_NAME' => $_ENV['DB_NAME'] ?? 'not set in _ENV',
-                'DB_USER' => $_ENV['DB_USER'] ?? 'not set in _ENV',
-                'DB_PASS' => $_ENV['DB_PASS'] ? '****' : 'not set in _ENV',
-                'getenv_DB_HOST' => getenv('DB_HOST') ?: 'not set in getenv',
-                'getenv_DB_NAME' => getenv('DB_NAME') ?: 'not set in getenv',
-                'getenv_DB_USER' => getenv('DB_USER') ?: 'not set in getenv',
-                'getenv_DB_PASS' => getenv('DB_PASS') ? '****' : 'not set in getenv'
+            $dsn = "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'];
+            $username = $_ENV['DB_USER'];
+            $password = $_ENV['DB_PASS'];
+            
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false
             ];
-
-            // Try to connect with explicit values
-            $db = new PDO(
-                "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'],
-                $_ENV['DB_USER'],
-                $_ENV['DB_PASS']
-            );
-            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            $db = new PDO($dsn, $username, $password, $options);
             
             // Test query
-            $stmt = $db->query("SELECT 1");
+            $stmt = $db->query("SELECT VERSION() as version");
             $result = $stmt->fetch();
             
             echo json_encode([
                 'status' => 'success',
                 'message' => 'Database connection successful',
-                'environment_variables' => $envVars
+                'connection_details' => [
+                    'dsn' => $dsn,
+                    'username' => $username,
+                    'password_provided' => !empty($password),
+                    'mysql_version' => $result['version'],
+                    'php_pdo_drivers' => PDO::getAvailableDrivers()
+                ],
+                'environment_variables' => [
+                    'DB_HOST' => $_ENV['DB_HOST'],
+                    'DB_NAME' => $_ENV['DB_NAME'],
+                    'DB_USER' => $_ENV['DB_USER'],
+                    'DB_PASS_length' => strlen($_ENV['DB_PASS'])
+                ]
             ], JSON_PRETTY_PRINT);
         } catch (PDOException $e) {
             http_response_code(500);
@@ -118,7 +122,18 @@ try {
                 'status' => 'error',
                 'message' => 'Database connection failed',
                 'error' => $e->getMessage(),
-                'environment_variables' => $envVars
+                'error_code' => $e->getCode(),
+                'connection_details' => [
+                    'dsn' => $dsn,
+                    'username' => $username,
+                    'password_provided' => !empty($password)
+                ],
+                'environment_variables' => [
+                    'DB_HOST' => $_ENV['DB_HOST'],
+                    'DB_NAME' => $_ENV['DB_NAME'],
+                    'DB_USER' => $_ENV['DB_USER'],
+                    'DB_PASS_length' => strlen($_ENV['DB_PASS'])
+                ]
             ], JSON_PRETTY_PRINT);
         }
         exit;

@@ -11,15 +11,25 @@ error_log("Password length: " . (isset($_ENV['DB_PASS']) ? strlen($_ENV['DB_PASS
 
 // Initialize database connection
 try {
-    $db = new PDO(
-        "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'],
-        $_ENV['DB_USER'],
-        $_ENV['DB_PASS'],
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
+    $dsn = "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'];
+    $username = $_ENV['DB_USER'];
+    $password = $_ENV['DB_PASS'];
+    
+    error_log("DSN: " . $dsn);
+    error_log("Username: " . $username);
+    error_log("Password provided: " . ($password ? 'yes' : 'no'));
+    
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ];
+    
+    $db = new PDO($dsn, $username, $password, $options);
+    error_log("Database connection successful");
 } catch (PDOException $e) {
     error_log("Database connection error: " . $e->getMessage());
-    error_log("Connection string: mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME']);
+    error_log("Error code: " . $e->getCode());
     throw $e;
 }
 
