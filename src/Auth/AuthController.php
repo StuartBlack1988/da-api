@@ -7,6 +7,7 @@ use Firebase\JWT\Key;
 use Exception;
 use App\Token\TokenController;
 use App\Role\RoleController;
+use PDOException;
 
 class AuthController {
     private $db;
@@ -132,40 +133,63 @@ class AuthController {
         ];
     }
 
-    public function setPassword($data, $userId) {
+    public function setPassword($data) {
         // Validate input
-        if (empty($data['password'])) {
-            return ['error' => 'Password is required'];
+        if (!isset($data['token']) || !isset($data['password'])) {
+            return ['error' => 'Token and password are required'];
         }
 
-        // Get current user role
-        $stmt = $this->db->prepare("
-            SELECT r.name as role 
-            FROM `User` u 
-            JOIN `Role` r ON u.roleId = r.roleId 
-            WHERE u.userId = ?
-        ");
-        $stmt->execute([$userId]);
-        $user = $stmt->fetch();
-
-        if (!$user) {
-            return ['error' => 'User not found'];
+        // Validate password
+        if (strlen($data['password']) < 8) {
+            return ['error' => 'Password must be at least 8 characters long'];
         }
 
-        // Update password
-        $stmt = $this->db->prepare("UPDATE `User` SET password = ? WHERE userId = ?");
-        $stmt->execute([password_hash($data['password'], PASSWORD_DEFAULT), $userId]);
+        // Check if password meets complexity requirements
+        if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/', $data['password'])) {
+            return ['error' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'];
+        }
 
-        // If user was in pending state, update to active role
-        if (strpos($user['role'], 'pending-') === 0) {
-            $isClient = $user['role'] === 'pending-client';
-            $activeRole = $this->roleController->getActiveRole($isClient);
-            if ($activeRole) {
-                $this->roleController->updateUserRole($userId, $activeRole['roleId']);
+        try {
+            // Get token data
+            $stmt = $this->db->prepare("SELECT userId, tokenType, expiryDateTime, isUsed FROM `Token` WHERE token = ?");
+            $stmt->execute([$data['token']]);
+            $tokenData = $stmt->fetch();
+
+            if (!$tokenData) {
+                return ['error' => 'Invalid token'];
             }
-        }
 
-        return ['message' => 'Password updated successfully'];
+            // Check if token is expired
+            if (strtotime($tokenData['expiryDateTime']) < time()) {
+                return ['error' => 'Token has expired'];
+            }
+
+            // Check if token is already used
+            if ($tokenData['isUsed']) {
+                return ['error' => 'Token has already been used'];
+            }
+
+            // Check if token type is set-password
+            if ($tokenData['tokenType'] !== 'set-password') {
+                return ['error' => 'Invalid token type'];
+            }
+
+            // Hash the password
+            $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+
+            // Update the password
+            $stmt = $this->db->prepare("UPDATE `User` SET password = ? WHERE userId = ?");
+            $stmt->execute([$hashedPassword, $tokenData['userId']]);
+
+            // Mark token as used
+            $stmt = $this->db->prepare("UPDATE `Token` SET isUsed = TRUE WHERE token = ?");
+            $stmt->execute([$data['token']]);
+
+            return ['message' => 'Password set successfully'];
+        } catch (PDOException $e) {
+            error_log("Error setting password: " . $e->getMessage());
+            return ['error' => 'Failed to set password'];
+        }
     }
 
     public function resetPassword($data) {
