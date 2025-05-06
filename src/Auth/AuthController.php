@@ -68,7 +68,7 @@ class AuthController {
     }
 
     private function sendSetPasswordEmail($email, $token) {
-        $setPasswordUrl = $_ENV['APP_URL'] . "/set-password/" . $token;
+        $setPasswordUrl = str_replace('api.', 'www.', $_ENV['APP_URL']) . "/set-password/" . $token;
         
         $to = $email;
         $subject = "Set Your Password - Dietitian Assist";
