@@ -5,7 +5,8 @@
     "require": {
         "php": "^8.2",
         "firebase/php-jwt": "^6.0",
-        "vlucas/phpdotenv": "^5.5"
+        "vlucas/phpdotenv": "^5.5",
+        "bramus/router": "^1.6"
     },
     "autoload": {
         "psr-4": {

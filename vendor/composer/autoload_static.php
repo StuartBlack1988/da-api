@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit259ed81f184e18edd19e21fde8c25049
+class ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -76,6 +76,16 @@ class ComposerStaticInit259ed81f184e18edd19e21fde8c25049
         ),
     );
 
+    public static $prefixesPsr0 = array (
+        'B' => 
+        array (
+            'Bramus' => 
+            array (
+                0 => __DIR__ . '/..' . '/bramus/router/src',
+            ),
+        ),
+    );
+
     public static $classMap = array (
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
@@ -88,9 +98,10 @@ class ComposerStaticInit259ed81f184e18edd19e21fde8c25049
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit259ed81f184e18edd19e21fde8c25049::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit259ed81f184e18edd19e21fde8c25049::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit259ed81f184e18edd19e21fde8c25049::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$classMap;
 
         }, null, ClassLoader::class);
     }
