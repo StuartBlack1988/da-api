@@ -6,14 +6,14 @@ use App\User\UserController;
 $userController = new UserController($db);
 
 // User routes
-$router->post('/user/update', function() use ($userController, $db) {
+$router->post('/user/update', function() use ($userController) {
     // Get user ID from JWT token
     $headers = getallheaders();
     $token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
     
     try {
-        $decoded = \Firebase\JWT\JWT::decode($token, $jwtSecretKey, ['HS256']);
-        $userId = $decoded->userId;
+        $decoded = \Firebase\JWT\JWT::decode($token, $_ENV['JWT_SECRET_KEY'], ['HS256']);
+        $userId = $decoded->sub;
         
         // Get request body
         $data = json_decode(file_get_contents('php://input'), true);
@@ -34,14 +34,14 @@ $router->post('/user/update', function() use ($userController, $db) {
     }
 });
 
-$router->get('/user/profile', function() use ($userController, $db) {
+$router->get('/user/profile', function() use ($userController) {
     // Get user ID from JWT token
     $headers = getallheaders();
     $token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
     
     try {
-        $decoded = \Firebase\JWT\JWT::decode($token, $jwtSecretKey, ['HS256']);
-        $userId = $decoded->userId;
+        $decoded = \Firebase\JWT\JWT::decode($token, $_ENV['JWT_SECRET_KEY'], ['HS256']);
+        $userId = $decoded->sub;
         
         // Get user profile
         $result = $userController->getUser($userId);

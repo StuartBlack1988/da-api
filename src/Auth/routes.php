@@ -31,49 +31,37 @@ try {
 
 $auth = new AuthController($db);
 
-// Get request data
-$data = json_decode(file_get_contents('php://input'), true);
+// Auth routes
+$router->post('/auth/register', function() use ($auth) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($auth->register($data));
+});
 
-// Route the request
-switch ($uriParts[0]) {
-    case 'auth':
-        switch ($uriParts[1] ?? '') {
-            case 'register':
-                echo json_encode($auth->register($data));
-                break;
-                
-            case 'login':
-                echo json_encode($auth->login($data));
-                break;
-                
-            case 'set-password':
-                echo json_encode($auth->setPassword($data));
-                break;
-                
-            case 'update':
-                // Get user ID from JWT token
-                $token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION'] ?? '');
-                try {
-                    $decoded = JWT::decode($token, new Key($_ENV['JWT_SECRET_KEY'], 'HS256'));
-                    echo json_encode($auth->updateUser($data, $decoded->sub));
-                } catch (\Exception $e) {
-                    http_response_code(401);
-                    echo json_encode(['error' => 'Invalid token']);
-                }
-                break;
-                
-            case 'reset-password':
-                echo json_encode($auth->resetPassword($data));
-                break;
-                
-            default:
-                http_response_code(404);
-                echo json_encode(['error' => 'Not Found']);
-                break;
-        }
-        break;
-        
-    default:
-        // Handle other routes
-        break;
-} 
+$router->post('/auth/login', function() use ($auth) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($auth->login($data));
+});
+
+$router->post('/auth/set-password', function() use ($auth) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($auth->setPassword($data));
+});
+
+$router->post('/auth/update', function() use ($auth) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $headers = getallheaders();
+    $token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
+    
+    try {
+        $decoded = \Firebase\JWT\JWT::decode($token, $_ENV['JWT_SECRET_KEY'], ['HS256']);
+        echo json_encode($auth->updateUser($data, $decoded->sub));
+    } catch (\Exception $e) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid token']);
+    }
+});
+
+$router->post('/auth/reset-password', function() use ($auth) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($auth->resetPassword($data));
+}); 
