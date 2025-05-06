@@ -3,11 +3,11 @@
         'name' => 'da-api/dietitian-assist',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'f8d23d23bc14e501fb6af26597ec0d8a633cdd34',
+        'reference' => '87314d39b839583ec51a2a4575afa590d1030663',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
-        'dev' => false,
+        'dev' => true,
     ),
     'versions' => array(
         'bramus/router' => array(
@@ -22,7 +22,7 @@
         'da-api/dietitian-assist' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'f8d23d23bc14e501fb6af26597ec0d8a633cdd34',
+            'reference' => '87314d39b839583ec51a2a4575afa590d1030663',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
