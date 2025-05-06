@@ -4,13 +4,17 @@ namespace App\Auth;
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Exception;
 
 class AuthController {
     private $secretKey;
     private $db;
 
     public function __construct($db) {
-        $this->secretKey = getenv('JWT_SECRET_KEY');
+        $this->secretKey = $_ENV['JWT_SECRET_KEY'] ?? getenv('JWT_SECRET_KEY');
+        if (empty($this->secretKey)) {
+            throw new Exception('JWT_SECRET_KEY is not set in environment variables');
+        }
         $this->db = $db;
     }
 
@@ -21,7 +25,7 @@ class AuthController {
         }
 
         // Check if user exists
-        $stmt = $this->db->prepare("SELECT userId FROM users WHERE email = ?");
+        $stmt = $this->db->prepare("SELECT userId FROM user WHERE email = ?");
         $stmt->execute([$data['email']]);
         if ($stmt->fetch()) {
             return ['error' => 'User already exists'];
@@ -31,7 +35,7 @@ class AuthController {
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
         // Create user
-        $stmt = $this->db->prepare("INSERT INTO users (email, password, name, surname) VALUES (?, ?, ?, ?)");
+        $stmt = $this->db->prepare("INSERT INTO user (email, password, name, surname) VALUES (?, ?, ?, ?)");
         $stmt->execute([$data['email'], $hashedPassword, $data['name'], $data['surname']]);
 
         return ['message' => 'User registered successfully'];
@@ -44,7 +48,7 @@ class AuthController {
         }
 
         // Get user
-        $stmt = $this->db->prepare("SELECT userId, password FROM users WHERE email = ?");
+        $stmt = $this->db->prepare("SELECT userId, password FROM user WHERE email = ?");
         $stmt->execute([$data['email']]);
         $user = $stmt->fetch();
 
@@ -53,7 +57,7 @@ class AuthController {
         }
 
         // Update last login
-        $stmt = $this->db->prepare("UPDATE users SET lastLogin = CURRENT_TIMESTAMP WHERE userId = ?");
+        $stmt = $this->db->prepare("UPDATE user SET lastLogin = CURRENT_TIMESTAMP WHERE userId = ?");
         $stmt->execute([$user['userId']]);
 
         // Generate JWT token
@@ -79,7 +83,7 @@ class AuthController {
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
             // Update password
-            $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE userId = ?");
+            $stmt = $this->db->prepare("UPDATE user SET password = ? WHERE userId = ?");
             $stmt->execute([$hashedPassword, $userId]);
 
             return ['message' => 'Password updated successfully'];
@@ -95,7 +99,7 @@ class AuthController {
         }
 
         // Update user
-        $stmt = $this->db->prepare("UPDATE users SET email = ?, name = ?, surname = ? WHERE userId = ?");
+        $stmt = $this->db->prepare("UPDATE user SET email = ?, name = ?, surname = ? WHERE userId = ?");
         $stmt->execute([$data['email'], $data['name'] ?? '', $data['surname'] ?? '', $userId]);
 
         return ['message' => 'User updated successfully'];
@@ -129,6 +133,11 @@ class AuthController {
             'sub' => $userId
         ];
 
-        return JWT::encode($payload, $this->secretKey, 'HS256');
+        try {
+            return JWT::encode($payload, $this->secretKey, 'HS256');
+        } catch (Exception $e) {
+            error_log("JWT encoding error: " . $e->getMessage());
+            throw new Exception('Failed to generate authentication token');
+        }
     }
 } 
