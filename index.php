@@ -6,6 +6,15 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/error.log');
 
+// Debug .env file
+error_log("Checking .env file:");
+error_log("File exists: " . (file_exists(__DIR__ . '/.env') ? 'yes' : 'no'));
+error_log("File readable: " . (is_readable(__DIR__ . '/.env') ? 'yes' : 'no'));
+if (file_exists(__DIR__ . '/.env')) {
+    error_log("File size: " . filesize(__DIR__ . '/.env') . " bytes");
+    error_log("File permissions: " . substr(sprintf('%o', fileperms(__DIR__ . '/.env')), -4));
+}
+
 // Create a custom error handler
 function customErrorHandler($errno, $errstr, $errfile, $errline) {
     $logFile = __DIR__ . '/debug.log';
@@ -42,8 +51,15 @@ try {
     require_once __DIR__ . '/vendor/autoload.php';
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
+    
+    // Debug environment variables after loading
+    error_log("Environment variables after loading:");
+    error_log("DB_HOST: " . ($_ENV['DB_HOST'] ?? 'not set'));
+    error_log("DB_NAME: " . ($_ENV['DB_NAME'] ?? 'not set'));
+    error_log("DB_USER: " . ($_ENV['DB_USER'] ?? 'not set'));
+    error_log("DB_PASS length: " . (isset($_ENV['DB_PASS']) ? strlen($_ENV['DB_PASS']) : 'not set'));
 } catch (Exception $e) {
-    file_put_contents($logFile, date('Y-m-d H:i:s') . " - Exception: " . $e->getMessage() . "\n", FILE_APPEND);
+    error_log("Error loading .env: " . $e->getMessage());
     throw $e;
 }
 
