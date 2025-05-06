@@ -2,12 +2,26 @@
 
 use App\Auth\AuthController;
 
+// Debug environment variables
+error_log("DB Connection attempt with:");
+error_log("Host: " . $_ENV['DB_HOST']);
+error_log("Database: " . $_ENV['DB_NAME']);
+error_log("User: " . $_ENV['DB_USER']);
+error_log("Password length: " . (isset($_ENV['DB_PASS']) ? strlen($_ENV['DB_PASS']) : 'not set'));
+
 // Initialize database connection
-$db = new PDO(
-    "mysql:host=" . getenv('DB_HOST') . ";dbname=" . getenv('DB_NAME'),
-    getenv('DB_USER'),
-    getenv('DB_PASS')
-);
+try {
+    $db = new PDO(
+        "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'],
+        $_ENV['DB_USER'],
+        $_ENV['DB_PASS'],
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+} catch (PDOException $e) {
+    error_log("Database connection error: " . $e->getMessage());
+    error_log("Connection string: mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME']);
+    throw $e;
+}
 
 $auth = new AuthController($db);
 
@@ -34,7 +48,7 @@ switch ($uriParts[0]) {
                 // Get user ID from JWT token
                 $token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION'] ?? '');
                 try {
-                    $decoded = JWT::decode($token, new Key(getenv('JWT_SECRET_KEY'), 'HS256'));
+                    $decoded = JWT::decode($token, new Key($_ENV['JWT_SECRET_KEY'], 'HS256'));
                     echo json_encode($auth->updateUser($data, $decoded->sub));
                 } catch (\Exception $e) {
                     http_response_code(401);
