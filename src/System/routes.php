@@ -7,7 +7,8 @@ class BaseController {
 
     public function __construct($db) {
         $this->db = $db;
-        $this->apiAuthMiddleware = new \App\ApiAuth\ApiAuthMiddleware($db);
+        $apiAuthController = new \DietitianAssist\ApiAuth\ApiAuthController($db);
+        $this->apiAuthMiddleware = new \DietitianAssist\ApiAuth\ApiAuthMiddleware($apiAuthController);
     }
 
     protected function validateApiToken() {
