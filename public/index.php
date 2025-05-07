@@ -2,7 +2,7 @@
 
 // Set error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/error.log');
 
@@ -14,6 +14,12 @@ function customErrorHandler($errno, $errstr, $errfile, $errline) {
 
 // Set the custom error handler
 set_error_handler('customErrorHandler');
+
+// Log all headers at the start
+$headers = getallheaders();
+error_log("Incoming request headers: " . print_r($headers, true));
+error_log("Request URI: " . $_SERVER['REQUEST_URI']);
+error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
 
 // Try to load the autoloader and environment
 try {
@@ -48,33 +54,6 @@ try {
     throw $e;
 }
 
-// Check API token before any routing
-$headers = getallheaders();
-$apiToken = $headers['X-API-Key'] ?? null;
-
-error_log("Request headers: " . print_r($headers, true));
-error_log("Request URI: " . $_SERVER['REQUEST_URI']);
-error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
-
-if (!$apiToken) {
-    error_log("No API token provided in request");
-    http_response_code(401);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'API token is required']);
-    exit();
-}
-
-// Validate API token
-$apiAuthController = new \App\ApiAuth\ApiAuthController($db);
-$apiAuth = $apiAuthController->validateApiToken($apiToken);
-if (!$apiAuth) {
-    error_log("Invalid API token provided: " . $apiToken);
-    http_response_code(401);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Invalid or expired API token']);
-    exit();
-}
-
 // Create router instance
 try {
     $router = new \Bramus\Router\Router();
@@ -97,9 +76,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+// Check API token before any routing
+$apiToken = $headers['X-API-Key'] ?? null;
+
+if (!$apiToken) {
+    error_log("No API token provided in request");
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'API token is required']);
+    exit();
+}
+
+// Validate API token
+$apiAuthController = new \App\ApiAuth\ApiAuthController($db);
+$apiAuth = $apiAuthController->validateApiToken($apiToken);
+if (!$apiAuth) {
+    error_log("Invalid API token provided: " . $apiToken);
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Invalid or expired API token']);
+    exit();
+}
+
 // Include route files
 try {
     error_log("Loading route files...");
+    
+    // Debug route - add this before loading other routes
+    $router->get('/system/debug', function() use ($headers) {
+        echo json_encode([
+            'headers' => $headers,
+            'server' => $_SERVER,
+            'message' => 'Debug route working'
+        ]);
+    });
+    
     require_once __DIR__ . '/../src/System/routes.php';  // System routes first
     require_once __DIR__ . '/../src/Auth/routes.php';
     require_once __DIR__ . '/../src/User/routes.php';
@@ -118,14 +129,16 @@ $router->get('/', function() {
 
 // 404 handler
 $router->set404(function() {
+    error_log("404 Not Found: " . $_SERVER['REQUEST_URI']);
     header('HTTP/1.1 404 Not Found');
     echo json_encode(['error' => 'Not Found']);
 });
 
 // Run the router
 try {
-    error_log("Starting router...");
+    error_log("Starting router with URI: " . $_SERVER['REQUEST_URI']);
     $router->run();
+    error_log("Router completed successfully");
 } catch (Exception $e) {
     error_log("Error running router: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
