@@ -82,6 +82,7 @@ $router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware
 // Include route files
 try {
     error_log("Loading route files...");
+    require_once __DIR__ . '/../src/System/routes.php';  // System routes first
     require_once __DIR__ . '/../src/Auth/routes.php';
     require_once __DIR__ . '/../src/User/routes.php';
     require_once __DIR__ . '/../src/ApiAuth/routes.php';
