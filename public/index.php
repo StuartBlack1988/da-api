@@ -29,6 +29,52 @@ try {
     throw $e;
 }
 
+// Initialize database connection
+try {
+    $dsn = "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'];
+    $username = $_ENV['DB_USER'];
+    $password = $_ENV['DB_PASS'];
+    
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ];
+    
+    $db = new PDO($dsn, $username, $password, $options);
+    error_log("Database connection successful");
+} catch (PDOException $e) {
+    error_log("Database connection error: " . $e->getMessage());
+    throw $e;
+}
+
+// Check API token before any routing
+$headers = getallheaders();
+$apiToken = $headers['X-API-Key'] ?? null;
+
+error_log("Request headers: " . print_r($headers, true));
+error_log("Request URI: " . $_SERVER['REQUEST_URI']);
+error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+
+if (!$apiToken) {
+    error_log("No API token provided in request");
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'API token is required']);
+    exit();
+}
+
+// Validate API token
+$apiAuthController = new \App\ApiAuth\ApiAuthController($db);
+$apiAuth = $apiAuthController->validateApiToken($apiToken);
+if (!$apiAuth) {
+    error_log("Invalid API token provided: " . $apiToken);
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Invalid or expired API token']);
+    exit();
+}
+
 // Create router instance
 try {
     $router = new \Bramus\Router\Router();
@@ -49,25 +95,6 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
-}
-
-// Initialize database connection
-try {
-    $dsn = "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'];
-    $username = $_ENV['DB_USER'];
-    $password = $_ENV['DB_PASS'];
-    
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false
-    ];
-    
-    $db = new PDO($dsn, $username, $password, $options);
-    error_log("Database connection successful");
-} catch (PDOException $e) {
-    error_log("Database connection error: " . $e->getMessage());
-    throw $e;
 }
 
 // Include route files
