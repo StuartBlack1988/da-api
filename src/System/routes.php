@@ -1,7 +1,15 @@
 <?php
 
+// Initialize API auth middleware
+$apiAuthMiddleware = new \App\ApiAuth\ApiAuthMiddleware($db);
+
 // System routes
-$router->get('/system/info', function() {
+$router->get('/system/info', function() use ($apiAuthMiddleware) {
+    // Check API token
+    if (!$apiAuthMiddleware->handle($_SERVER)) {
+        return; // Middleware will handle the response and exit
+    }
+    
     error_log("System info endpoint called");
     echo json_encode([
         'php_version' => PHP_VERSION,
@@ -10,7 +18,12 @@ $router->get('/system/info', function() {
     ]);
 });
 
-$router->get('/system/db-test', function() {
+$router->get('/system/db-test', function() use ($apiAuthMiddleware) {
+    // Check API token
+    if (!$apiAuthMiddleware->handle($_SERVER)) {
+        return; // Middleware will handle the response and exit
+    }
+    
     error_log("DB test endpoint called");
     try {
         $dsn = "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'];

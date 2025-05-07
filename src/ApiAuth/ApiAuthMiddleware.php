@@ -23,7 +23,7 @@ class ApiAuthMiddleware {
             error_log("No API token provided in request");
             http_response_code(401);
             echo json_encode(['error' => 'API token is required']);
-            exit(); // Use exit() to ensure the request stops here
+            return false;
         }
 
         // Validate API token
@@ -32,7 +32,7 @@ class ApiAuthMiddleware {
             error_log("Invalid API token provided: " . $apiToken);
             http_response_code(401);
             echo json_encode(['error' => 'Invalid or expired API token']);
-            exit(); // Use exit() to ensure the request stops here
+            return false;
         }
 
         error_log("API token validated successfully");

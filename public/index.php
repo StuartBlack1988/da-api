@@ -70,15 +70,6 @@ try {
     throw $e;
 }
 
-// Initialize API auth middleware
-$apiAuthMiddleware = new \App\ApiAuth\ApiAuthMiddleware($db);
-
-// Add middleware to router - this must be done BEFORE any routes are defined
-$router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware) {
-    error_log("Middleware called for request: " . $_SERVER['REQUEST_URI']);
-    return $apiAuthMiddleware->handle($_SERVER);
-});
-
 // Include route files
 try {
     error_log("Loading route files...");
