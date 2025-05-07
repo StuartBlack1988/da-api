@@ -116,6 +116,7 @@ class AuthController {
 
         // Check if user is in pending state
         if (strpos($user['role'], 'pending-') === 0) {
+            http_response_code(401);
             return ['error' => 'Please set your password first'];
         }
 
@@ -182,15 +183,47 @@ class AuthController {
             // Hash the password
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
-            // Update the password
-            $stmt = $this->db->prepare("UPDATE `User` SET password = ? WHERE userId = ?");
-            $stmt->execute([$hashedPassword, $tokenData['userId']]);
+            // Get user's current role
+            $stmt = $this->db->prepare("
+                SELECT u.roleId, r.name as roleName 
+                FROM `User` u 
+                JOIN `Role` r ON u.roleId = r.roleId 
+                WHERE u.userId = ?
+            ");
+            $stmt->execute([$tokenData['userId']]);
+            $user = $stmt->fetch();
 
-            // Mark token as used
-            $stmt = $this->db->prepare("UPDATE `Token` SET isUsed = TRUE WHERE token = ?");
-            $stmt->execute([$data['token']]);
+            // Start transaction
+            $this->db->beginTransaction();
 
-            return ['message' => 'Password set successfully'];
+            try {
+                // Update the password
+                $stmt = $this->db->prepare("UPDATE `User` SET password = ? WHERE userId = ?");
+                $stmt->execute([$hashedPassword, $tokenData['userId']]);
+
+                // Update role if user is in pending state
+                if (strpos($user['roleName'], 'pending-') === 0) {
+                    $newRole = str_replace('pending-', '', $user['roleName']);
+                    $stmt = $this->db->prepare("
+                        UPDATE `User` u 
+                        JOIN `Role` r ON r.name = ? 
+                        SET u.roleId = r.roleId 
+                        WHERE u.userId = ?
+                    ");
+                    $stmt->execute([$newRole, $tokenData['userId']]);
+                }
+
+                // Mark token as used
+                $stmt = $this->db->prepare("UPDATE `Token` SET isUsed = TRUE WHERE token = ?");
+                $stmt->execute([$data['token']]);
+
+                $this->db->commit();
+                return ['message' => 'Password set successfully'];
+            } catch (PDOException $e) {
+                $this->db->rollBack();
+                error_log("Error setting password: " . $e->getMessage());
+                return ['error' => 'Failed to set password'];
+            }
         } catch (PDOException $e) {
             error_log("Error setting password: " . $e->getMessage());
             return ['error' => 'Failed to set password'];
