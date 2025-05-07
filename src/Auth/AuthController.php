@@ -116,7 +116,7 @@ class AuthController {
 
         // Check if user is in pending state
         if (strpos($user['role'], 'pending-') === 0) {
-            http_response_code(401);
+            http_response_code(200);
             return ['error' => 'Please set your password first'];
         }
 
