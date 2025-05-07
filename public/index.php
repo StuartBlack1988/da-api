@@ -8,7 +8,7 @@ require_once __DIR__ . '/../src/ApiAuth/routes.php';
 $apiAuthMiddleware = new \App\ApiAuth\ApiAuthMiddleware($db);
 
 // Add middleware to router - this must be done BEFORE any routes are defined
-$router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware) {
+$router->before('GET|POST|PUT|DELETE', '/.*', function($request) use ($apiAuthMiddleware) {
     return $apiAuthMiddleware->handle($request);
 });
 
