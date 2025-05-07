@@ -102,7 +102,7 @@ class AuthController {
 
         // Get user with role
         $stmt = $this->db->prepare("
-            SELECT u.userId, u.password, r.name as role 
+            SELECT u.userId, u.password, u.isActive, r.name as role 
             FROM `User` u 
             JOIN `Role` r ON u.roleId = r.roleId 
             WHERE u.email = ?
@@ -117,6 +117,11 @@ class AuthController {
         // Check if user is in pending state
         if (strpos($user['role'], 'pending-') === 0) {
             return ['error' => 'Please set your password first'];
+        }
+
+        // Check if user is active
+        if (!$user['isActive']) {
+            return ['error' => 'Account is deactivated. Please contact support.'];
         }
 
         // Update last login

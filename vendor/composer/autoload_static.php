@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0
+class ComposerStaticInit40573be2bff2bb53759576877fcb1dd0
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -22,6 +22,7 @@ class ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0
         'P' => 
         array (
             'PhpOption\\' => 10,
+            'PHPMailer\\PHPMailer\\' => 20,
         ),
         'G' => 
         array (
@@ -34,10 +35,7 @@ class ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0
         'D' => 
         array (
             'Dotenv\\' => 7,
-        ),
-        'A' => 
-        array (
-            'App\\' => 4,
+            'DietitianAssist\\' => 16,
         ),
     );
 
@@ -58,6 +56,10 @@ class ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
+        'PHPMailer\\PHPMailer\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
+        ),
         'GrahamCampbell\\ResultType\\' => 
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
@@ -70,19 +72,9 @@ class ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0
         array (
             0 => __DIR__ . '/..' . '/vlucas/phpdotenv/src',
         ),
-        'App\\' => 
+        'DietitianAssist\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
-        ),
-    );
-
-    public static $prefixesPsr0 = array (
-        'B' => 
-        array (
-            'Bramus' => 
-            array (
-                0 => __DIR__ . '/..' . '/bramus/router/src',
-            ),
         ),
     );
 
@@ -98,10 +90,9 @@ class ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInitec1205d88110efeae3b9e5106c0a67d0::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit40573be2bff2bb53759576877fcb1dd0::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit40573be2bff2bb53759576877fcb1dd0::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit40573be2bff2bb53759576877fcb1dd0::$classMap;
 
         }, null, ClassLoader::class);
     }

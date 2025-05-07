@@ -15,23 +15,13 @@ function customErrorHandler($errno, $errstr, $errfile, $errline) {
 // Set the custom error handler
 set_error_handler('customErrorHandler');
 
-// Log all headers at the start
-$headers = getallheaders();
-error_log("Incoming request headers: " . print_r($headers, true));
-error_log("Request URI: " . $_SERVER['REQUEST_URI']);
-error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
-
 // Try to load the autoloader and environment
 try {
     require_once __DIR__ . '/vendor/autoload.php';
-    error_log("Autoloader loaded successfully");
-    
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
-    error_log("Environment variables loaded successfully");
 } catch (Exception $e) {
     error_log("Error loading dependencies: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
     throw $e;
 }
 
@@ -48,7 +38,6 @@ try {
     ];
     
     $db = new PDO($dsn, $username, $password, $options);
-    error_log("Database connection successful");
 } catch (PDOException $e) {
     error_log("Database connection error: " . $e->getMessage());
     throw $e;
@@ -57,10 +46,8 @@ try {
 // Create router instance
 try {
     $router = new \Bramus\Router\Router();
-    error_log("Router initialized successfully");
 } catch (Exception $e) {
     error_log("Error initializing router: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
     throw $e;
 }
 
@@ -107,9 +94,9 @@ $router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware
 });
 
 // Debug route - add this before loading other routes
-$router->get('/system/debug', function() use ($headers) {
+$router->get('/system/debug', function() {
     echo json_encode([
-        'headers' => $headers,
+        'headers' => getallheaders(),
         'server' => $_SERVER,
         'message' => 'Debug route working'
     ]);
@@ -117,14 +104,11 @@ $router->get('/system/debug', function() use ($headers) {
 
 // Include route files
 try {
-    error_log("Loading route files...");
     require_once __DIR__ . '/src/System/routes.php';  // System routes first
     require_once __DIR__ . '/src/Auth/routes.php';
     require_once __DIR__ . '/src/User/routes.php';
-    error_log("Route files loaded successfully");
 } catch (Exception $e) {
     error_log("Error loading route files: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
     throw $e;
 }
 
@@ -141,11 +125,9 @@ $router->set404(function() {
 
 // Run the router
 try {
-    error_log("Starting router...");
     $router->run();
 } catch (Exception $e) {
     error_log("Router error: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
     echo json_encode(['error' => 'Internal Server Error']);
 } 

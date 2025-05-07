@@ -1,7 +1,8 @@
 <?php
 
-namespace App\ApiAuth;
+namespace DietitianAssist\ApiAuth;
 
+use PDO;
 use PDOException;
 
 class ApiAuthController {
@@ -12,8 +13,6 @@ class ApiAuthController {
     }
 
     public function createApiToken($name, $description = null, $expiryDate = null, $createdBy = null) {
-        error_log("Creating API token with name: " . $name);
-        
         try {
             $token = bin2hex(random_bytes(32));
             
@@ -37,8 +36,6 @@ class ApiAuthController {
                 $createdBy
             ]);
             
-            error_log("API token created successfully");
-            
             return [
                 'status' => 'success',
                 'message' => 'API token created successfully',
@@ -46,7 +43,6 @@ class ApiAuthController {
             ];
         } catch (PDOException $e) {
             error_log("Error creating API token: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             return [
                 'status' => 'error',
                 'message' => 'Failed to create API token'
@@ -55,8 +51,6 @@ class ApiAuthController {
     }
 
     public function validateApiToken($token) {
-        error_log("Validating API token: " . $token);
-        
         try {
             $stmt = $this->db->prepare("
                 SELECT * 
@@ -69,16 +63,7 @@ class ApiAuthController {
             $stmt->execute([$token]);
             $result = $stmt->fetch();
             
-            error_log("Database query result: " . ($result ? 'Token found' : 'Token not found'));
-            if ($result) {
-                error_log("Token details:");
-                error_log("- isActive: " . ($result['isActive'] ? 'Yes' : 'No'));
-                error_log("- expiryDate: " . ($result['expiryDate'] ?? 'None'));
-                error_log("- lastUsed: " . ($result['lastUsed'] ?? 'Never'));
-            }
-            
             if (!$result) {
-                error_log("Token validation failed: Token not found or expired");
                 return false;
             }
             
@@ -90,19 +75,15 @@ class ApiAuthController {
             ");
             
             $updateStmt->execute([$result['apiAuthId']]);
-            error_log("Token validation successful. Last used timestamp updated.");
             
             return true;
         } catch (PDOException $e) {
             error_log("Error validating API token: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             return false;
         }
     }
 
     public function deactivateApiToken($apiAuthId) {
-        error_log("Deactivating API token: " . $apiAuthId);
-        
         try {
             $stmt = $this->db->prepare("
                 UPDATE ApiAuth 
@@ -113,15 +94,12 @@ class ApiAuthController {
             
             $stmt->execute([$apiAuthId]);
             
-            error_log("API token deactivated successfully");
-            
             return [
                 'status' => 'success',
                 'message' => 'API token deactivated successfully'
             ];
         } catch (PDOException $e) {
             error_log("Error deactivating API token: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             return [
                 'status' => 'error',
                 'message' => 'Failed to deactivate API token'
@@ -157,7 +135,6 @@ class ApiAuthController {
             ];
         } catch (PDOException $e) {
             error_log("Error listing API tokens: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             return [
                 'status' => 'error',
                 'message' => 'Failed to list API tokens'
