@@ -67,23 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $apiAuthController = new \DietitianAssist\ApiAuth\ApiAuthController($db);
 $apiAuthMiddleware = new \DietitianAssist\ApiAuth\ApiAuthMiddleware($apiAuthController);
 
-// Define public routes that don't require API token
-$publicRoutes = [
-    '/auth/login',
-    '/auth/register',
-    '/auth/reset-password',
-    '/auth/set-password'
-];
-
 // Global middleware to check API token
-$router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware, $publicRoutes) {
-    $requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    
-    // Skip API token check for public routes
-    if (in_array($requestPath, $publicRoutes)) {
-        return;
-    }
-    
+$router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware) {
     // Skip API token check for OPTIONS requests (CORS preflight)
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         return;
