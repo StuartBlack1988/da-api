@@ -21,8 +21,7 @@ class ApiAuthMiddleware {
 
         if (!$apiToken) {
             error_log("No API token provided in request");
-            http_response_code(401);
-            echo json_encode(['error' => 'API token is required']);
+            $this->sendUnauthorizedResponse('API token is required');
             return false;
         }
 
@@ -30,12 +29,18 @@ class ApiAuthMiddleware {
         $apiAuth = $this->apiAuthController->validateApiToken($apiToken);
         if (!$apiAuth) {
             error_log("Invalid API token provided: " . $apiToken);
-            http_response_code(401);
-            echo json_encode(['error' => 'Invalid or expired API token']);
+            $this->sendUnauthorizedResponse('Invalid or expired API token');
             return false;
         }
 
         error_log("API token validated successfully");
         return true;
+    }
+
+    private function sendUnauthorizedResponse($message) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => $message]);
+        exit(); // Stop execution
     }
 } 
