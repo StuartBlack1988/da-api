@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Auth;
+namespace DietitianAssist\Auth;
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Exception;
-use App\Token\TokenController;
-use App\Role\RoleController;
+use DietitianAssist\Token\TokenController;
+use DietitianAssist\Role\RoleController;
 use PDOException;
 
 class AuthController {

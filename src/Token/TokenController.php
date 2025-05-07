@@ -1,6 +1,9 @@
 <?php
 
-namespace App\Token;
+namespace DietitianAssist\Token;
+
+use PDO;
+use PDOException;
 
 class TokenController {
     private $db;

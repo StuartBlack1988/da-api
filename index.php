@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Initialize API Auth middleware
-$apiAuthMiddleware = new \App\ApiAuth\ApiAuthMiddleware($db);
+$apiAuthMiddleware = new \DietitianAssist\ApiAuth\ApiAuthMiddleware($db);
 
 // Define public routes that don't require API token
 $publicRoutes = [

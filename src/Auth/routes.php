@@ -1,6 +1,6 @@
 <?php
 
-use App\Auth\AuthController;
+use DietitianAssist\Auth\AuthController;
 
 // Debug environment variables
 error_log("DB Connection attempt with:");

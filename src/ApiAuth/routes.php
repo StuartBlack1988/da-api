@@ -1,6 +1,6 @@
 <?php
 
-use App\ApiAuth\ApiAuthController;
+use DietitianAssist\ApiAuth\ApiAuthController;
 
 $apiAuth = new ApiAuthController($db);
 

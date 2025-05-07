@@ -1,6 +1,9 @@
 <?php
 
-namespace App\Role;
+namespace DietitianAssist\Role;
+
+use PDO;
+use PDOException;
 
 class RoleController {
     private $db;

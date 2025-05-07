@@ -1,6 +1,6 @@
 <?php
 
-use App\User\UserController;
+use DietitianAssist\User\UserController;
 
 // Initialize User controller
 $userController = new UserController($db);
