@@ -23,10 +23,10 @@ error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
 
 // Try to load the autoloader and environment
 try {
-    require_once __DIR__ . '/../vendor/autoload.php';
+    require_once __DIR__ . '/vendor/autoload.php';
     error_log("Autoloader loaded successfully");
     
-    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
     error_log("Environment variables loaded successfully");
 } catch (Exception $e) {
@@ -118,9 +118,9 @@ $router->get('/system/debug', function() use ($headers) {
 // Include route files
 try {
     error_log("Loading route files...");
-    require_once __DIR__ . '/../src/System/routes.php';  // System routes first
-    require_once __DIR__ . '/../src/Auth/routes.php';
-    require_once __DIR__ . '/../src/User/routes.php';
+    require_once __DIR__ . '/src/System/routes.php';  // System routes first
+    require_once __DIR__ . '/src/Auth/routes.php';
+    require_once __DIR__ . '/src/User/routes.php';
     error_log("Route files loaded successfully");
 } catch (Exception $e) {
     error_log("Error loading route files: " . $e->getMessage());
