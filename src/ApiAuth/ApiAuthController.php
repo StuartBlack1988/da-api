@@ -85,13 +85,12 @@ class ApiAuthController {
             // Update last used timestamp
             $updateStmt = $this->db->prepare("
                 UPDATE ApiAuth 
-                SET lastUsed = CURRENT_TIMESTAMP,
-                    usageCount = COALESCE(usageCount, 0) + 1
+                SET lastUsed = CURRENT_TIMESTAMP
                 WHERE apiAuthId = ?
             ");
             
             $updateStmt->execute([$result['apiAuthId']]);
-            error_log("Token validation successful. Usage count updated.");
+            error_log("Token validation successful. Last used timestamp updated.");
             
             return true;
         } catch (PDOException $e) {
