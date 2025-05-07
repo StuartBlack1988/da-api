@@ -57,10 +57,6 @@ try {
 // Create router instance
 try {
     $router = new \Bramus\Router\Router();
-    
-    // Set the base path if needed
-    $router->setBasePath('');
-    
     error_log("Router initialized successfully");
 } catch (Exception $e) {
     error_log("Error initializing router: " . $e->getMessage());
@@ -80,27 +76,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Check API token before any routing
-$apiToken = $headers['X-API-Key'] ?? null;
+// Initialize API Auth middleware
+$apiAuthMiddleware = new \App\ApiAuth\ApiAuthMiddleware($db);
 
-if (!$apiToken) {
-    error_log("No API token provided in request");
-    http_response_code(401);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'API token is required']);
-    exit();
-}
+// Define public routes that don't require API token
+$publicRoutes = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/reset-password',
+    '/auth/set-password'
+];
 
-// Validate API token
-$apiAuthController = new \App\ApiAuth\ApiAuthController($db);
-$apiAuth = $apiAuthController->validateApiToken($apiToken);
-if (!$apiAuth) {
-    error_log("Invalid API token provided: " . $apiToken);
-    http_response_code(401);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Invalid or expired API token']);
-    exit();
-}
+// Global middleware to check API token
+$router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware, $publicRoutes) {
+    $requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    
+    // Skip API token check for public routes
+    if (in_array($requestPath, $publicRoutes)) {
+        return;
+    }
+    
+    // Skip API token check for OPTIONS requests (CORS preflight)
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        return;
+    }
+    
+    if (!$apiAuthMiddleware->handle($_SERVER)) {
+        exit(); // ApiAuthMiddleware already sets response code and message
+    }
+});
 
 // Debug route - add this before loading other routes
 $router->get('/system/debug', function() use ($headers) {
@@ -117,7 +121,6 @@ try {
     require_once __DIR__ . '/../src/System/routes.php';  // System routes first
     require_once __DIR__ . '/../src/Auth/routes.php';
     require_once __DIR__ . '/../src/User/routes.php';
-    require_once __DIR__ . '/../src/ApiAuth/routes.php';
     error_log("Route files loaded successfully");
 } catch (Exception $e) {
     error_log("Error loading route files: " . $e->getMessage());
@@ -132,18 +135,17 @@ $router->get('/', function() {
 
 // 404 handler
 $router->set404(function() {
-    error_log("404 Not Found: " . $_SERVER['REQUEST_URI']);
     header('HTTP/1.1 404 Not Found');
     echo json_encode(['error' => 'Not Found']);
 });
 
 // Run the router
 try {
-    error_log("Starting router with URI: " . $_SERVER['REQUEST_URI']);
+    error_log("Starting router...");
     $router->run();
-    error_log("Router completed successfully");
 } catch (Exception $e) {
-    error_log("Error running router: " . $e->getMessage());
+    error_log("Router error: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
-    throw $e;
+    http_response_code(500);
+    echo json_encode(['error' => 'Internal Server Error']);
 } 

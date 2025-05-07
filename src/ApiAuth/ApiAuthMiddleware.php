@@ -14,33 +14,45 @@ class ApiAuthMiddleware {
         $headers = getallheaders();
         $apiToken = $headers['X-API-Key'] ?? null;
 
-        // Log the headers for debugging
-        error_log("Request headers: " . print_r($headers, true));
-        error_log("Request URI: " . $server['REQUEST_URI']);
-        error_log("Request method: " . $server['REQUEST_METHOD']);
+        // Log request details for debugging
+        error_log("Request details:");
+        error_log("- URI: " . $server['REQUEST_URI']);
+        error_log("- Method: " . $server['REQUEST_METHOD']);
+        error_log("- Headers present: " . implode(', ', array_keys($headers)));
+        error_log("- API Token present: " . ($apiToken ? 'Yes' : 'No'));
 
         if (!$apiToken) {
-            error_log("No API token provided in request");
+            error_log("API token validation failed: No token provided");
             $this->sendUnauthorizedResponse('API token is required');
             return false;
         }
 
         // Validate API token
-        $apiAuth = $this->apiAuthController->validateApiToken($apiToken);
-        if (!$apiAuth) {
-            error_log("Invalid API token provided: " . $apiToken);
-            $this->sendUnauthorizedResponse('Invalid or expired API token');
+        try {
+            $apiAuth = $this->apiAuthController->validateApiToken($apiToken);
+            if (!$apiAuth) {
+                error_log("API token validation failed: Invalid or expired token");
+                $this->sendUnauthorizedResponse('Invalid or expired API token');
+                return false;
+            }
+
+            error_log("API token validated successfully");
+            return true;
+        } catch (\Exception $e) {
+            error_log("API token validation error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            $this->sendUnauthorizedResponse('Error validating API token');
             return false;
         }
-
-        error_log("API token validated successfully");
-        return true;
     }
 
     private function sendUnauthorizedResponse($message) {
         http_response_code(401);
         header('Content-Type: application/json');
-        echo json_encode(['error' => $message]);
-        exit(); // Stop execution
+        echo json_encode([
+            'error' => $message,
+            'status' => 401,
+            'timestamp' => date('c')
+        ]);
     }
 } 
