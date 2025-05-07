@@ -88,6 +88,7 @@ $router->get('/system/debug-headers', function() {
 
 $router->get('/system/info', function() {
     error_log("System info endpoint called");
+    header('Content-Type: application/json');
     echo json_encode([
         'php_version' => PHP_VERSION,
         'server_software' => $_SERVER['SERVER_SOFTWARE'],
@@ -95,21 +96,10 @@ $router->get('/system/info', function() {
     ]);
 });
 
-$router->get('/system/db-test', function() {
+$router->get('/system/db-test', function() use ($db) {
     error_log("DB test endpoint called");
+    header('Content-Type: application/json');
     try {
-        $dsn = "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'];
-        $username = $_ENV['DB_USER'];
-        $password = $_ENV['DB_PASS'];
-        
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false
-        ];
-        
-        $db = new PDO($dsn, $username, $password, $options);
-        
         // Test query
         $stmt = $db->query("SELECT VERSION() as version");
         $result = $stmt->fetch();

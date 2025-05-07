@@ -57,6 +57,10 @@ try {
 // Create router instance
 try {
     $router = new \Bramus\Router\Router();
+    
+    // Set the base path if needed
+    $router->setBasePath('');
+    
     error_log("Router initialized successfully");
 } catch (Exception $e) {
     error_log("Error initializing router: " . $e->getMessage());
@@ -98,19 +102,18 @@ if (!$apiAuth) {
     exit();
 }
 
+// Debug route - add this before loading other routes
+$router->get('/system/debug', function() use ($headers) {
+    echo json_encode([
+        'headers' => $headers,
+        'server' => $_SERVER,
+        'message' => 'Debug route working'
+    ]);
+});
+
 // Include route files
 try {
     error_log("Loading route files...");
-    
-    // Debug route - add this before loading other routes
-    $router->get('/system/debug', function() use ($headers) {
-        echo json_encode([
-            'headers' => $headers,
-            'server' => $_SERVER,
-            'message' => 'Debug route working'
-        ]);
-    });
-    
     require_once __DIR__ . '/../src/System/routes.php';  // System routes first
     require_once __DIR__ . '/../src/Auth/routes.php';
     require_once __DIR__ . '/../src/User/routes.php';
