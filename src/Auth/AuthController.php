@@ -150,7 +150,7 @@ class AuthController {
         }
 
         // Check if password meets complexity requirements
-        if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/', $data['password'])) {
+        if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d])[A-Za-z\d\W]{8,}$/', $data['password'])) {
             return ['error' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'];
         }
 
