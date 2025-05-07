@@ -55,7 +55,7 @@ class ApiAuthController {
     }
 
     public function validateApiToken($token) {
-        error_log("Validating API token");
+        error_log("Validating API token: " . $token);
         
         try {
             $stmt = $this->db->prepare("
@@ -68,6 +68,14 @@ class ApiAuthController {
             
             $stmt->execute([$token]);
             $result = $stmt->fetch();
+            
+            error_log("Database query result: " . ($result ? 'Token found' : 'Token not found'));
+            if ($result) {
+                error_log("Token details:");
+                error_log("- isActive: " . ($result['isActive'] ? 'Yes' : 'No'));
+                error_log("- expiryDate: " . ($result['expiryDate'] ?? 'None'));
+                error_log("- lastUsed: " . ($result['lastUsed'] ?? 'Never'));
+            }
             
             if (!$result) {
                 error_log("Token validation failed: Token not found or expired");

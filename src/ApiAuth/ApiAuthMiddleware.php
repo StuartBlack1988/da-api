@@ -20,6 +20,7 @@ class ApiAuthMiddleware {
         error_log("- Method: " . $server['REQUEST_METHOD']);
         error_log("- Headers present: " . implode(', ', array_keys($headers)));
         error_log("- API Token present: " . ($apiToken ? 'Yes' : 'No'));
+        error_log("- API Token value: " . ($apiToken ? $apiToken : 'Not provided'));
 
         if (!$apiToken) {
             error_log("API token validation failed: No token provided");
@@ -29,7 +30,10 @@ class ApiAuthMiddleware {
 
         // Validate API token
         try {
+            error_log("Attempting to validate API token...");
             $apiAuth = $this->apiAuthController->validateApiToken($apiToken);
+            error_log("API token validation result: " . ($apiAuth ? 'Success' : 'Failed'));
+            
             if (!$apiAuth) {
                 error_log("API token validation failed: Invalid or expired token");
                 $this->sendUnauthorizedResponse('Invalid or expired API token');
