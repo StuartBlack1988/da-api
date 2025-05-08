@@ -263,4 +263,48 @@ class AuthController {
     public function markTokenAsUsed($token) {
         return $this->tokenController->markTokenAsUsed($token);
     }
+
+    public function validateTokenEndpoint($data) {
+        // Validate input
+        if (empty($data['token']) || empty($data['type'])) {
+            return ['error' => 'Token and type are required'];
+        }
+
+        try {
+            // Get token data
+            $stmt = $this->db->prepare("
+                SELECT userId, tokenType, expiryDateTime, isUsed 
+                FROM `Token` 
+                WHERE token = ? AND tokenType = ?
+            ");
+            $stmt->execute([$data['token'], $data['type']]);
+            $tokenData = $stmt->fetch();
+
+            if (!$tokenData) {
+                http_response_code(200);
+                return ['error' => 'Your token is invalid or has expired, please request a new password link'];
+            }
+
+            // Check if token is expired
+            if (strtotime($tokenData['expiryDateTime']) < time()) {
+                http_response_code(200);
+                return ['error' => 'Your token is invalid or has expired, please request a new password link'];
+            }
+
+            // Check if token is already used
+            if ($tokenData['isUsed']) {
+                http_response_code(200);
+                return ['error' => 'Your token is invalid or has expired, please request a new password link'];
+            }
+
+            return [
+                'message' => 'Token is valid',
+                'userId' => $tokenData['userId']
+            ];
+        } catch (PDOException $e) {
+            error_log("Error validating token: " . $e->getMessage());
+            http_response_code(200);
+            return ['error' => 'Your token is invalid or has expired, please request a new password link'];
+        }
+    }
 } 

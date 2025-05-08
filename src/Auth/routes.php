@@ -64,4 +64,9 @@ $router->post('/auth/update', function() use ($auth) {
 $router->post('/auth/reset-password', function() use ($auth) {
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($auth->resetPassword($data));
+});
+
+$router->post('/auth/validate-token', function() use ($auth) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($auth->validateTokenEndpoint($data));
 }); 
