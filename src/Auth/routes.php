@@ -69,4 +69,22 @@ $router->post('/auth/reset-password', function() use ($auth) {
 $router->post('/auth/validate-token', function() use ($auth) {
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($auth->validateTokenEndpoint($data));
+});
+
+// Create new patient
+$router->post('/auth/create-patient', function() use ($auth) {
+    try {
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        if (!$data) {
+            throw new Exception('Invalid request data');
+        }
+
+        $result = $auth->createPatient($data);
+        http_response_code(201);
+        echo json_encode($result);
+    } catch (Exception $e) {
+        http_response_code(400);
+        echo json_encode(['error' => $e->getMessage()]);
+    }
 }); 

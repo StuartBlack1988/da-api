@@ -201,6 +201,8 @@ class AuthController {
                 $stmt = $this->db->prepare("UPDATE `User` SET password = ? WHERE userId = ?");
                 $stmt->execute([$hashedPassword, $tokenData['userId']]);
 
+                $response = ['message' => 'Password set successfully'];
+
                 // Update role if user is in pending state
                 if (strpos($user['roleName'], 'pending-') === 0) {
                     $newRole = str_replace('pending-', '', $user['roleName']);
@@ -211,6 +213,11 @@ class AuthController {
                         WHERE u.userId = ?
                     ");
                     $stmt->execute([$newRole, $tokenData['userId']]);
+                    
+                    // Add role to response if user was pending-patient
+                    if ($user['roleName'] === 'pending-patient') {
+                        $response['role'] = 'patient';
+                    }
                 }
 
                 // Mark token as used
@@ -218,7 +225,7 @@ class AuthController {
                 $stmt->execute([$data['token']]);
 
                 $this->db->commit();
-                return ['message' => 'Password set successfully'];
+                return $response;
             } catch (PDOException $e) {
                 $this->db->rollBack();
                 error_log("Error setting password: " . $e->getMessage());
@@ -305,6 +312,92 @@ class AuthController {
             error_log("Error validating token: " . $e->getMessage());
             http_response_code(200);
             return ['error' => 'Your token is invalid or has expired, please request a new password link'];
+        }
+    }
+
+    public function createPatient($data) {
+        try {
+            // Validate required fields
+            if (!isset($data['email']) || !isset($data['token'])) {
+                throw new Exception('Missing required fields');
+            }
+
+            // Validate email format
+            if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                throw new Exception('Invalid email format');
+            }
+
+            // Check if email already exists
+            $stmt = $this->db->prepare("SELECT userId FROM User WHERE email = ?");
+            $stmt->execute([$data['email']]);
+            if ($stmt->fetch()) {
+                throw new Exception('Email already registered');
+            }
+
+            // Validate token and get client ID
+            $stmt = $this->db->prepare("
+                SELECT u.userId 
+                FROM User u 
+                JOIN Token t ON u.userId = t.userId 
+                WHERE t.token = ? 
+                AND t.tokenType = 'login' 
+                AND t.isUsed = 0 
+                AND t.expiryDateTime > NOW()
+                AND u.roleId = 4 
+                AND u.isActive = 1
+            ");
+            $stmt->execute([$data['token']]);
+            $client = $stmt->fetch();
+
+            if (!$client) {
+                throw new Exception('Invalid or expired token');
+            }
+
+            $clientId = $client['userId'];
+
+            // Generate a secure token for setting password
+            $token = bin2hex(random_bytes(32));
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
+            // Start transaction
+            $this->db->beginTransaction();
+
+            try {
+                // Insert user with pending-patient role
+                $stmt = $this->db->prepare("
+                    INSERT INTO User (email, roleId, isActive, clientId) 
+                    VALUES (?, ?, ?, 2, 1, ?)
+                ");
+                $stmt->execute([
+                    $data['email'],
+                    $clientId
+                ]);
+                $userId = $this->db->lastInsertId();
+
+                // Create password reset token
+                $stmt = $this->db->prepare("
+                    INSERT INTO PasswordResetToken (userId, token, type, isUsed, expiresAt) 
+                    VALUES (?, ?, 'set-password', 0, ?)
+                ");
+                $stmt->execute([$userId, $token, $expiresAt]);
+
+                // Commit transaction
+                $this->db->commit();
+
+                // TODO: Send email with token for setting password
+                // For now, we'll return the token in the response
+                return [
+                    'message' => 'Patient registration successful. Please ask your patient to check their email to set their password and fill out basic details.',
+                    'token' => $token // Remove this in production
+                ];
+
+            } catch (Exception $e) {
+                $this->db->rollBack();
+                throw $e;
+            }
+
+        } catch (Exception $e) {
+            throw new Exception('Failed to create patient: ' . $e->getMessage());
         }
     }
 } 
