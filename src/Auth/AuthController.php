@@ -350,7 +350,27 @@ class AuthController {
             $client = $stmt->fetch();
 
             if (!$client) {
-                throw new Exception('Invalid or expired token');
+                // Check if token exists but is invalid for other reasons
+                $stmt = $this->db->prepare("
+                    SELECT t.token, t.isUsed, t.expiryDateTime, u.roleId, u.isActive
+                    FROM Token t
+                    JOIN User u ON t.userId = u.userId
+                    WHERE t.token = ?
+                ");
+                $stmt->execute([$data['token']]);
+                $tokenDetails = $stmt->fetch();
+
+                if (!$tokenDetails) {
+                    throw new Exception('Invalid token');
+                } else if ($tokenDetails['isUsed']) {
+                    throw new Exception('Token has already been used');
+                } else if (strtotime($tokenDetails['expiryDateTime']) < time()) {
+                    throw new Exception('Token has expired');
+                } else if ($tokenDetails['roleId'] != 4) {
+                    throw new Exception('Token does not belong to a client');
+                } else if (!$tokenDetails['isActive']) {
+                    throw new Exception('Client account is inactive');
+                }
             }
 
             $clientId = $client['userId'];
@@ -366,7 +386,7 @@ class AuthController {
                 // Insert user with pending-patient role
                 $stmt = $this->db->prepare("
                     INSERT INTO User (email, roleId, isActive, clientId) 
-                    VALUES (?, ?, ?, 2, 1, ?)
+                    VALUES (?, 2, 1, ?)
                 ");
                 $stmt->execute([
                     $data['email'],
