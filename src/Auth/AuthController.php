@@ -394,9 +394,9 @@ class AuthController {
                 ]);
                 $userId = $this->db->lastInsertId();
 
-                // Create password reset token
+                // Create set-password token
                 $stmt = $this->db->prepare("
-                    INSERT INTO PasswordResetToken (userId, token, type, isUsed, expiresAt) 
+                    INSERT INTO Token (userId, token, tokenType, isUsed, expiryDateTime) 
                     VALUES (?, ?, 'set-password', 0, ?)
                 ");
                 $stmt->execute([$userId, $token, $expiresAt]);
