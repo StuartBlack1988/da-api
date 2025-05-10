@@ -401,14 +401,14 @@ class AuthController {
                 ");
                 $stmt->execute([$userId, $token, $expiresAt]);
 
+                // Send email with set-password link
+                $this->sendSetPasswordEmail($data['email'], $token);
+
                 // Commit transaction
                 $this->db->commit();
 
-                // TODO: Send email with token for setting password
-                // For now, we'll return the token in the response
                 return [
-                    'message' => 'Patient registration successful. Please ask your patient to check their email to set their password and fill out basic details.',
-                    'token' => $token // Remove this in production
+                    'message' => 'Patient registration successful. Please ask your patient to check their email to set their password and fill out basic details.'
                 ];
 
             } catch (Exception $e) {
