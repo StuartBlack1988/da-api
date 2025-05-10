@@ -3,7 +3,7 @@
         'name' => 'dietitianassist/api',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'd45155dc46ffb40527fd7605b0786c1d0a38958d',
+        'reference' => 'd097ff86a3964f1fdf9fd5d2ee9ab606d48a2e71',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'dietitianassist/api' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'd45155dc46ffb40527fd7605b0786c1d0a38958d',
+            'reference' => 'd097ff86a3964f1fdf9fd5d2ee9ab606d48a2e71',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

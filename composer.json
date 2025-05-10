@@ -15,9 +15,5 @@
         "psr-4": {
             "DietitianAssist\\": "src/"
         }
-    },
-    "scripts": {
-        "migrate": "php database/migrate.php migrate",
-        "migrate:rollback": "php database/migrate.php rollback"
     }
 }

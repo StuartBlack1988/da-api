@@ -93,6 +93,7 @@ try {
     require_once __DIR__ . '/src/System/routes.php';  // System routes first
     require_once __DIR__ . '/src/Auth/routes.php';
     require_once __DIR__ . '/src/User/routes.php';
+    require_once __DIR__ . '/src/Migration/routes.php';  // Add migration routes
 } catch (Exception $e) {
     error_log("Error loading route files: " . $e->getMessage());
     throw $e;
@@ -101,6 +102,15 @@ try {
 // Default route
 $router->get('/', function() {
     echo json_encode(['message' => 'Welcome to the Dietitian Assist API']);
+});
+
+// Migration routes
+$router->post('/api/migrate', function() use ($db) {
+    $controller = new \DietitianAssist\Controllers\MigrationController($db);
+    $request = json_decode(file_get_contents('php://input'), true);
+    $result = $controller->handleMigration($request);
+    header('Content-Type: application/json');
+    echo json_encode($result);
 });
 
 // 404 handler

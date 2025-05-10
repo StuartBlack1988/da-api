@@ -2,262 +2,260 @@
 
 namespace DietitianAssist\User;
 
-use PDO;
-use PDOException;
+use DietitianAssist\Core\BaseController;
+use DietitianAssist\Core\Response;
 
-class UserController {
-    private $db;
-
-    public function __construct($db) {
-        $this->db = $db;
+class UserController extends BaseController {
+    public function __construct(\PDO $pdo) {
+        parent::__construct($pdo);
     }
 
     public function listUsers($filters = [], $page = 1, $limit = 20) {
         try {
             $offset = ($page - 1) * $limit;
+            $where = [];
             $params = [];
-            $whereClauses = [];
 
-            // Build WHERE clause based on filters
-            if (isset($filters['role'])) {
-                $whereClauses[] = "r.name = ?";
+            if (!empty($filters['role'])) {
+                $where[] = "u.roleId = ?";
                 $params[] = $filters['role'];
             }
 
-            if (isset($filters['isActive'])) {
-                $whereClauses[] = "u.isActive = ?";
-                $params[] = $filters['isActive'] ? 1 : 0;
+            if (!empty($filters['status'])) {
+                $where[] = "u.status = ?";
+                $params[] = $filters['status'];
             }
 
-            if (isset($filters['search'])) {
-                $whereClauses[] = "(u.name LIKE ? OR u.surname LIKE ? OR u.email LIKE ?)";
-                $searchTerm = "%{$filters['search']}%";
-                $params[] = $searchTerm;
-                $params[] = $searchTerm;
-                $params[] = $searchTerm;
+            if (!empty($filters['search'])) {
+                $where[] = "(u.email LIKE ? OR ud.firstName LIKE ? OR ud.lastName LIKE ?)";
+                $search = "%{$filters['search']}%";
+                $params = array_merge($params, [$search, $search, $search]);
             }
 
-            // Build the base query
+            $whereClause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+
             $sql = "
-                SELECT 
-                    u.*,
-                    r.name as role
+                SELECT u.*, ud.firstName, ud.lastName, ud.phone, r.name as roleName
                 FROM User u
-                JOIN Role r ON u.roleId = r.roleId
+                LEFT JOIN UserDetails ud ON u.id = ud.userId
+                LEFT JOIN Role r ON u.roleId = r.id
+                $whereClause
+                ORDER BY u.createdAt DESC
+                LIMIT ? OFFSET ?
             ";
 
-            // Add WHERE clause if filters exist
-            if (!empty($whereClauses)) {
-                $sql .= " WHERE " . implode(" AND ", $whereClauses);
-            }
-
-            // Get total count for pagination
-            $countSql = "SELECT COUNT(*) FROM User u JOIN Role r ON u.roleId = r.roleId";
-            if (!empty($whereClauses)) {
-                $countSql .= " WHERE " . implode(" AND ", $whereClauses);
-            }
-            
-            $countStmt = $this->db->prepare($countSql);
-            $countStmt->execute($params);
-            $total = $countStmt->fetchColumn();
-
-            // Add pagination
-            $sql .= " ORDER BY u.createdDate DESC LIMIT ? OFFSET ?";
             $params[] = $limit;
             $params[] = $offset;
 
-            // Execute the main query
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
-            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $users = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
-            return [
-                'status' => 'success',
-                'data' => [
-                    'users' => $users,
-                    'pagination' => [
-                        'total' => (int)$total,
-                        'page' => (int)$page,
-                        'limit' => (int)$limit,
-                        'totalPages' => ceil($total / $limit)
-                    ]
+            // Get total count for pagination
+            $countSql = "
+                SELECT COUNT(*) 
+                FROM User u
+                LEFT JOIN UserDetails ud ON u.id = ud.userId
+                $whereClause
+            ";
+            $stmt = $this->pdo->prepare($countSql);
+            $stmt->execute(array_slice($params, 0, -2));
+            $total = $stmt->fetchColumn();
+
+            return Response::success([
+                'users' => $users,
+                'pagination' => [
+                    'total' => $total,
+                    'page' => $page,
+                    'limit' => $limit,
+                    'pages' => ceil($total / $limit)
                 ]
-            ];
-        } catch (PDOException $e) {
-            error_log("Error listing users: " . $e->getMessage());
-            return [
-                'status' => 'error',
-                'error' => 'Failed to list users'
-            ];
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleError($e);
         }
     }
 
-    public function updateUser($userId, $data) {
+    public function createUser($data) {
         try {
+            $errors = $this->validateRequest($data, [
+                'email' => 'required|email',
+                'password' => 'required|password',
+                'roleId' => 'required|integer',
+                'firstName' => 'required',
+                'lastName' => 'required',
+                'phone' => 'required|phone'
+            ]);
+
+            if (!empty($errors)) {
+                return Response::validationError($errors);
+            }
+
+            $this->beginTransaction();
+
+            // Check if email already exists
+            $stmt = $this->pdo->prepare("SELECT id FROM User WHERE email = ?");
+            $stmt->execute([$data['email']]);
+            if ($stmt->fetch()) {
+                $this->rollback();
+                return Response::error('Email already exists', 400);
+            }
+
+            // Create user
+            $stmt = $this->pdo->prepare("
+                INSERT INTO User (email, password, roleId, status, createdAt, updatedAt)
+                VALUES (?, ?, ?, 'active', NOW(), NOW())
+            ");
+            $stmt->execute([
+                $data['email'],
+                password_hash($data['password'], PASSWORD_DEFAULT),
+                $data['roleId']
+            ]);
+            $userId = $this->pdo->lastInsertId();
+
+            // Create user details
+            $stmt = $this->pdo->prepare("
+                INSERT INTO UserDetails (userId, firstName, lastName, phone, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, NOW(), NOW())
+            ");
+            $stmt->execute([
+                $userId,
+                $data['firstName'],
+                $data['lastName'],
+                $data['phone']
+            ]);
+
+            $this->commit();
+
+            return Response::success(['id' => $userId], 'User created successfully');
+        } catch (\Exception $e) {
+            $this->rollback();
+            return $this->handleError($e);
+        }
+    }
+
+    public function updateUser($id, $data) {
+        try {
+            $errors = $this->validateRequest($data, [
+                'email' => 'email',
+                'password' => 'password',
+                'roleId' => 'integer',
+                'status' => 'boolean',
+                'firstName' => '',
+                'lastName' => '',
+                'phone' => 'phone'
+            ]);
+
+            if (!empty($errors)) {
+                return Response::validationError($errors);
+            }
+
+            $this->beginTransaction();
+
             // Check if user exists
-            $checkStmt = $this->db->prepare("SELECT * FROM User WHERE userId = ?");
-            $checkStmt->execute([$userId]);
-            $user = $checkStmt->fetch();
-
-            if (!$user) {
-                return [
-                    'status' => 'error',
-                    'error' => 'User not found'
-                ];
+            $stmt = $this->pdo->prepare("SELECT id FROM User WHERE id = ?");
+            $stmt->execute([$id]);
+            if (!$stmt->fetch()) {
+                $this->rollback();
+                return Response::notFound('User not found');
             }
 
-            // Check if email is already in use by another user
-            if (isset($data['email']) && $data['email'] !== $user['email']) {
-                $emailStmt = $this->db->prepare("SELECT userId FROM User WHERE email = ? AND userId != ?");
-                $emailStmt->execute([$data['email'], $userId]);
-                if ($emailStmt->fetch()) {
-                    return [
-                        'status' => 'error',
-                        'error' => 'Email already in use'
-                    ];
-                }
-            }
-
-            // Check if role exists if roleId is provided
-            if (isset($data['roleId'])) {
-                $roleStmt = $this->db->prepare("SELECT roleId FROM Role WHERE roleId = ?");
-                $roleStmt->execute([$data['roleId']]);
-                if (!$roleStmt->fetch()) {
-                    return [
-                        'status' => 'error',
-                        'error' => 'Invalid role ID'
-                    ];
-                }
-            }
-
-            // Build update query
-            $updateFields = [];
+            // Update user
+            $updates = [];
             $params = [];
 
-            $allowedFields = ['email', 'name', 'surname', 'roleId'];
-            foreach ($allowedFields as $field) {
-                if (isset($data[$field])) {
-                    $updateFields[] = "$field = ?";
-                    $params[] = $data[$field];
-                }
+            if (isset($data['email'])) {
+                $updates[] = "email = ?";
+                $params[] = $data['email'];
             }
 
-            if (empty($updateFields)) {
-                return [
-                    'status' => 'error',
-                    'error' => 'No valid fields to update'
-                ];
+            if (isset($data['password'])) {
+                $updates[] = "password = ?";
+                $params[] = password_hash($data['password'], PASSWORD_DEFAULT);
             }
 
-            $params[] = $userId;
-            $sql = "UPDATE User SET " . implode(", ", $updateFields) . " WHERE userId = ?";
-            
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute($params);
+            if (isset($data['roleId'])) {
+                $updates[] = "roleId = ?";
+                $params[] = $data['roleId'];
+            }
 
-            // Get updated user data
-            $updatedStmt = $this->db->prepare("
-                SELECT u.*, r.name as role 
-                FROM User u 
-                JOIN Role r ON u.roleId = r.roleId 
-                WHERE u.userId = ?
-            ");
-            $updatedStmt->execute([$userId]);
-            $updatedUser = $updatedStmt->fetch(PDO::FETCH_ASSOC);
+            if (isset($data['status'])) {
+                $updates[] = "status = ?";
+                $params[] = $data['status'];
+            }
 
-            return [
-                'status' => 'success',
-                'message' => 'User updated successfully',
-                'data' => $updatedUser
-            ];
-        } catch (PDOException $e) {
-            error_log("Error updating user: " . $e->getMessage());
-            return [
-                'status' => 'error',
-                'error' => 'Failed to update user'
-            ];
+            if (!empty($updates)) {
+                $updates[] = "updatedAt = NOW()";
+                $params[] = $id;
+
+                $sql = "UPDATE User SET " . implode(", ", $updates) . " WHERE id = ?";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute($params);
+            }
+
+            // Update user details
+            $updates = [];
+            $params = [];
+
+            if (isset($data['firstName'])) {
+                $updates[] = "firstName = ?";
+                $params[] = $data['firstName'];
+            }
+
+            if (isset($data['lastName'])) {
+                $updates[] = "lastName = ?";
+                $params[] = $data['lastName'];
+            }
+
+            if (isset($data['phone'])) {
+                $updates[] = "phone = ?";
+                $params[] = $data['phone'];
+            }
+
+            if (!empty($updates)) {
+                $updates[] = "updatedAt = NOW()";
+                $params[] = $id;
+
+                $sql = "UPDATE UserDetails SET " . implode(", ", $updates) . " WHERE userId = ?";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute($params);
+            }
+
+            $this->commit();
+
+            return Response::success(null, 'User updated successfully');
+        } catch (\Exception $e) {
+            $this->rollback();
+            return $this->handleError($e);
         }
     }
 
-    public function deactivateUser($userId) {
+    public function deleteUser($id) {
         try {
-            // Check if user exists
-            $checkStmt = $this->db->prepare("SELECT * FROM User WHERE userId = ?");
-            $checkStmt->execute([$userId]);
-            $user = $checkStmt->fetch();
+            $this->beginTransaction();
 
-            if (!$user) {
-                return [
-                    'status' => 'error',
-                    'error' => 'User not found'
-                ];
+            // Check if user exists
+            $stmt = $this->pdo->prepare("SELECT id FROM User WHERE id = ?");
+            $stmt->execute([$id]);
+            if (!$stmt->fetch()) {
+                $this->rollback();
+                return Response::notFound('User not found');
             }
 
-            // Update user status
-            $stmt = $this->db->prepare("
-                UPDATE User 
-                SET isActive = FALSE,
-                    deactivatedAt = CURRENT_TIMESTAMP
-                WHERE userId = ?
-            ");
-            
-            $stmt->execute([$userId]);
+            // Delete user details
+            $stmt = $this->pdo->prepare("DELETE FROM UserDetails WHERE userId = ?");
+            $stmt->execute([$id]);
 
-            return [
-                'status' => 'success',
-                'message' => 'User deactivated successfully',
-                'data' => [
-                    'userId' => $userId,
-                    'deactivatedAt' => date('Y-m-d H:i:s')
-                ]
-            ];
-        } catch (PDOException $e) {
-            error_log("Error deactivating user: " . $e->getMessage());
-            return [
-                'status' => 'error',
-                'error' => 'Failed to deactivate user'
-            ];
-        }
-    }
+            // Delete user
+            $stmt = $this->pdo->prepare("DELETE FROM User WHERE id = ?");
+            $stmt->execute([$id]);
 
-    public function reactivateUser($userId) {
-        try {
-            // Check if user exists
-            $checkStmt = $this->db->prepare("SELECT * FROM User WHERE userId = ?");
-            $checkStmt->execute([$userId]);
-            $user = $checkStmt->fetch();
+            $this->commit();
 
-            if (!$user) {
-                return [
-                    'status' => 'error',
-                    'error' => 'User not found'
-                ];
-            }
-
-            // Update user status
-            $stmt = $this->db->prepare("
-                UPDATE User 
-                SET isActive = TRUE,
-                    deactivatedAt = NULL
-                WHERE userId = ?
-            ");
-            
-            $stmt->execute([$userId]);
-
-            return [
-                'status' => 'success',
-                'message' => 'User reactivated successfully',
-                'data' => [
-                    'userId' => $userId,
-                    'deactivatedAt' => null
-                ]
-            ];
-        } catch (PDOException $e) {
-            error_log("Error reactivating user: " . $e->getMessage());
-            return [
-                'status' => 'error',
-                'error' => 'Failed to reactivate user'
-            ];
+            return Response::success(null, 'User deleted successfully');
+        } catch (\Exception $e) {
+            $this->rollback();
+            return $this->handleError($e);
         }
     }
 } 
