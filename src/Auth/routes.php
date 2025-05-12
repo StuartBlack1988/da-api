@@ -91,9 +91,26 @@ $router->post('/auth/create-patient', function() use ($auth) {
 
 // Check if email exists
 $router->post('/auth/check-email', function() use ($auth) {
-    $data = json_decode(file_get_contents('php://input'), true);
-    if (empty($data['email'])) {
-        return ['error' => 'Email is required'];
+    try {
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid request format']);
+            return;
+        }
+
+        if (empty($data['email'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Email is required']);
+            return;
+        }
+
+        $result = $auth->checkEmailExists($data['email']);
+        echo json_encode($result);
+    } catch (Exception $e) {
+        error_log("Error in check-email endpoint: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['error' => 'Internal server error']);
     }
-    return $auth->checkEmailExists($data['email']);
 }); 
