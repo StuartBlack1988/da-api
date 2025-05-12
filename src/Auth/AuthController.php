@@ -420,4 +420,26 @@ class AuthController {
             throw new Exception('Failed to create patient: ' . $e->getMessage());
         }
     }
+
+    public function checkEmailExists($email) {
+        try {
+            // Validate input
+            if (empty($email)) {
+                return ['error' => 'Email is required'];
+            }
+
+            // Check if email exists
+            $stmt = $this->db->prepare("SELECT userId FROM `User` WHERE email = ?");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
+
+            return [
+                'exists' => !empty($user),
+                'message' => !empty($user) ? 'Email exists' : 'Email does not exist'
+            ];
+        } catch (PDOException $e) {
+            error_log("Error checking email existence: " . $e->getMessage());
+            return ['error' => 'Failed to check email existence'];
+        }
+    }
 } 

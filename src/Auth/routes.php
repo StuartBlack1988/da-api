@@ -87,4 +87,12 @@ $router->post('/auth/create-patient', function() use ($auth) {
         http_response_code(400);
         echo json_encode(['error' => $e->getMessage()]);
     }
+});
+
+// Check if email exists
+$router->get('/check-email', function($data) use ($auth) {
+    if (empty($data['email'])) {
+        return ['error' => 'Email is required'];
+    }
+    return $auth->checkEmailExists($data['email']);
 }); 
