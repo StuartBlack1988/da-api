@@ -3,8 +3,6 @@
 namespace DietitianAssist\Practice;
 
 use PDO;
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
 use DietitianAssist\Core\ApiResponse;
 use DietitianAssist\Core\Validation;
 use DietitianAssist\Core\Security;
@@ -18,10 +16,8 @@ class PracticeController {
         $this->validation = new Validation();
     }
 
-    public function registerPractice(Request $request, Response $response): Response {
+    public function registerPractice($data) {
         try {
-            $data = $request->getParsedBody();
-
             // Validate required fields
             $requiredFields = [
                 'practiceName',
@@ -32,7 +28,7 @@ class PracticeController {
             ];
 
             if (!$this->validation->validateRequiredFields($data, $requiredFields)) {
-                return ApiResponse::error($response, 'Missing required fields', 400);
+                return ApiResponse::error('Missing required fields', 400);
             }
 
             // Start transaction
@@ -147,22 +143,31 @@ class PracticeController {
                 // Commit transaction
                 $this->db->commit();
 
-                return ApiResponse::success($response, [
-                    'practiceId' => $practiceId,
-                    'userId' => $userId,
-                    'dietitianDetailsId' => $dietitianDetailsId,
-                    'setPasswordToken' => $token
-                ]);
+                return [
+                    'status' => 'success',
+                    'data' => [
+                        'practiceId' => $practiceId,
+                        'userId' => $userId,
+                        'dietitianDetailsId' => $dietitianDetailsId,
+                        'setPasswordToken' => $token
+                    ]
+                ];
 
             } catch (\Exception $e) {
                 // Rollback transaction on error
                 $this->db->rollBack();
                 error_log("Practice registration error: " . $e->getMessage());
-                return ApiResponse::error($response, 'Failed to register practice: ' . $e->getMessage(), 500);
+                return [
+                    'status' => 'error',
+                    'message' => 'Failed to register practice: ' . $e->getMessage()
+                ];
             }
 
         } catch (\Exception $e) {
-            return ApiResponse::error($response, 'Failed to register practice: ' . $e->getMessage());
+            return [
+                'status' => 'error',
+                'message' => 'Failed to register practice: ' . $e->getMessage()
+            ];
         }
     }
 } 
