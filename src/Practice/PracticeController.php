@@ -143,31 +143,17 @@ class PracticeController {
                 // Commit transaction
                 $this->db->commit();
 
-                return [
-                    'status' => 'success',
-                    'data' => [
-                        'practiceId' => $practiceId,
-                        'userId' => $userId,
-                        'dietitianDetailsId' => $dietitianDetailsId,
-                        'setPasswordToken' => $token
-                    ]
-                ];
+                return ApiResponse::success(['message' => 'Practice registered successfully']);
 
             } catch (\Exception $e) {
                 // Rollback transaction on error
                 $this->db->rollBack();
                 error_log("Practice registration error: " . $e->getMessage());
-                return [
-                    'status' => 'error',
-                    'message' => 'Failed to register practice: ' . $e->getMessage()
-                ];
+                return ApiResponse::error('Failed to register practice: ' . $e->getMessage(), 500);
             }
 
         } catch (\Exception $e) {
-            return [
-                'status' => 'error',
-                'message' => 'Failed to register practice: ' . $e->getMessage()
-            ];
+            return ApiResponse::error('Failed to register practice: ' . $e->getMessage());
         }
     }
 } 
