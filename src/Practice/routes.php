@@ -1,8 +1,12 @@
 <?php
 
-use Slim\Routing\RouteCollectorProxy;
 use DietitianAssist\Practice\PracticeController;
 
-return function (RouteCollectorProxy $group) {
-    $group->post('/register', [PracticeController::class, 'registerPractice']);
-}; 
+// Initialize controller
+$practiceController = new PracticeController($db);
+
+// Practice routes
+$router->post('/practice/register', function() use ($practiceController) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($practiceController->registerPractice($data));
+}); 
