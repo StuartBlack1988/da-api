@@ -94,6 +94,7 @@ try {
     require_once __DIR__ . '/src/Auth/routes.php';
     require_once __DIR__ . '/src/User/routes.php';
     require_once __DIR__ . '/src/Migration/routes.php';  // Add migration routes
+    require_once __DIR__ . '/src/Practice/routes.php';  // Add practice routes
 } catch (Exception $e) {
     error_log("Error loading route files: " . $e->getMessage());
     throw $e;
