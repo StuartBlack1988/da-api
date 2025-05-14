@@ -2,14 +2,14 @@
 
 namespace DietitianAssist\Migration;
 
-use DietitianAssist\Core\Database;
+use PDO;
 use DietitianAssist\Core\ApiResponse;
 
 class MigrationController {
     private $db;
     private $migrationsPath;
 
-    public function __construct(Database $db) {
+    public function __construct(PDO $db) {
         $this->db = $db;
         $this->migrationsPath = __DIR__ . '/../../database/migrations/';
     }
