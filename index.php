@@ -105,15 +105,6 @@ $router->get('/', function() {
     echo json_encode(['message' => 'Welcome to the Dietitian Assist API']);
 });
 
-// Migration routes
-$router->post('/api/migrate', function() use ($db) {
-    $controller = new \DietitianAssist\Controllers\MigrationController($db);
-    $request = json_decode(file_get_contents('php://input'), true);
-    $result = $controller->handleMigration($request);
-    header('Content-Type: application/json');
-    echo json_encode($result);
-});
-
 // 404 handler
 $router->set404(function() {
     header('HTTP/1.1 404 Not Found');
