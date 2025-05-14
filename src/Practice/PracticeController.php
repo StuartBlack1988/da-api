@@ -24,7 +24,13 @@ class PracticeController {
                 'email',
                 'name',
                 'surname',
-                'phoneNumber'
+                'phoneNumber',
+                'billingLine1',
+                'billingLine2',
+                'billingSuburb',
+                'billingTown',
+                'billingCountry',
+                'billingPostalCode'
             ];
 
             if (!$this->validation->validateRequiredFields($data, $requiredFields)) {
@@ -53,13 +59,13 @@ class PracticeController {
                     'practiceName' => $data['practiceName'],
                     'phoneNumber' => $data['phoneNumber'],
                     'email' => $data['email'],
-                    'billingLine1' => $data['billingLine1'] ?? null,
-                    'billingLine2' => $data['billingLine2'] ?? null,
+                    'billingLine1' => $data['billingLine1'],
+                    'billingLine2' => $data['billingLine2'],
                     'billingLine3' => $data['billingLine3'] ?? null,
-                    'billingSuburb' => $data['billingSuburb'] ?? null,
-                    'billingTown' => $data['billingTown'] ?? null,
-                    'billingCountry' => $data['billingCountry'] ?? null,
-                    'billingPostalCode' => $data['billingPostalCode'] ?? null,
+                    'billingSuburb' => $data['billingSuburb'],
+                    'billingTown' => $data['billingTown'],
+                    'billingCountry' => $data['billingCountry'],
+                    'billingPostalCode' => $data['billingPostalCode'],
                     'practiceNumber' => $data['practiceNumber'] ?? null,
                     'vatNumber' => $data['vatNumber'] ?? null
                 ]);
