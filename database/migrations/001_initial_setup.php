@@ -1,5 +1,7 @@
 <?php
 
+namespace DietitianAssist\Migration;
+
 class InitialSetup {
     public function up($db) {
         // Start transaction

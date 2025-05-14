@@ -1,5 +1,7 @@
 <?php
 
+namespace DietitianAssist\Migration;
+
 class PracticeVerification {
     public function up($db) {
         $db->beginTransaction();
