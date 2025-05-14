@@ -2,7 +2,7 @@
 
 namespace DietitianAssist\Migration;
 
-class InitialSetup {
+class InitialSetup001 {
     public function up($db) {
         // Start transaction
         $db->beginTransaction();
@@ -351,4 +351,4 @@ class InitialSetup {
         $db->exec("DROP TABLE IF EXISTS `Role`");
         $db->exec("DROP TABLE IF EXISTS `SchemaVersion`");
     }
-} 
+}

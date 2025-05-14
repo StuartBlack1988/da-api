@@ -2,7 +2,7 @@
 
 namespace DietitianAssist\Migration;
 
-class PracticeVerification {
+class PracticeVerification002 {
     public function up($db) {
         $db->beginTransaction();
         
