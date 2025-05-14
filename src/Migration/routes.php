@@ -6,11 +6,13 @@ use DietitianAssist\Migration\MigrationController;
 $migrationController = new MigrationController($db);
 
 // Route for running migrations
-$router->post('/migrations/run', function() use ($migrationController) {
-    return $migrationController->runMigrations();
+$router->post('/api/migrations/run', function() use ($migrationController) {
+    $response = $migrationController->runMigrations();
+    echo json_encode($response);
 });
 
 // Route for rolling back migrations
-$router->post('/migrations/rollback', function() use ($migrationController) {
-    return $migrationController->rollbackMigrations();
+$router->post('/api/migrations/rollback', function() use ($migrationController) {
+    $response = $migrationController->rollbackMigrations();
+    echo json_encode($response);
 }); 
