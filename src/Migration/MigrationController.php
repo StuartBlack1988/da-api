@@ -16,6 +16,9 @@ class MigrationController {
 
     public function runMigrations() {
         try {
+            // Start a transaction for all migrations
+            $this->db->beginTransaction();
+
             // Get all migration files
             $migrationFiles = glob($this->migrationsPath . '*.php');
             sort($migrationFiles); // Ensure migrations run in order
@@ -44,12 +47,17 @@ class MigrationController {
                     $appliedMigrations[] = $className;
                 } catch (\Exception $e) {
                     $errors[] = "Error running migration {$className}: " . $e->getMessage();
+                    throw $e; // Re-throw to trigger rollback
                 }
             }
 
             if (!empty($errors)) {
+                $this->db->rollBack();
                 return ApiResponse::error(implode("\n", $errors));
             }
+
+            // Commit all migrations
+            $this->db->commit();
 
             return ApiResponse::success([
                 'message' => 'Migrations completed successfully',
@@ -57,12 +65,19 @@ class MigrationController {
             ]);
 
         } catch (\Exception $e) {
+            // Rollback on any error
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             return ApiResponse::error('Migration failed: ' . $e->getMessage());
         }
     }
 
     public function rollbackMigrations() {
         try {
+            // Start a transaction for all rollbacks
+            $this->db->beginTransaction();
+
             // Get all migration files in reverse order
             $migrationFiles = glob($this->migrationsPath . '*.php');
             rsort($migrationFiles); // Run migrations in reverse order
@@ -91,12 +106,17 @@ class MigrationController {
                     $rolledBackMigrations[] = $className;
                 } catch (\Exception $e) {
                     $errors[] = "Error rolling back migration {$className}: " . $e->getMessage();
+                    throw $e; // Re-throw to trigger rollback
                 }
             }
 
             if (!empty($errors)) {
+                $this->db->rollBack();
                 return ApiResponse::error(implode("\n", $errors));
             }
+
+            // Commit all rollbacks
+            $this->db->commit();
 
             return ApiResponse::success([
                 'message' => 'Migrations rolled back successfully',
@@ -104,6 +124,10 @@ class MigrationController {
             ]);
 
         } catch (\Exception $e) {
+            // Rollback on any error
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             return ApiResponse::error('Rollback failed: ' . $e->getMessage());
         }
     }
