@@ -19,23 +19,35 @@ class MigrationController {
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
+    private function getAvailableMigrations() {
+        $migrationFiles = glob($this->migrationsPath . '*.php');
+        sort($migrationFiles); // Ensure migrations are in order
+        return array_map('basename', $migrationFiles);
+    }
+
     public function runMigrations() {
         try {
             // Start a transaction for all migrations
             $this->db->beginTransaction();
 
-            // Get already applied migrations
+            // Get lists of migrations
             $appliedMigrations = $this->getAppliedMigrations();
+            $availableMigrations = $this->getAvailableMigrations();
 
-            // Get all migration files
-            $migrationFiles = glob($this->migrationsPath . '*.php');
-            sort($migrationFiles); // Ensure migrations run in order
+            // Find migrations that need to be run
+            $migrationsToRun = array_diff($availableMigrations, $appliedMigrations);
+            if (empty($migrationsToRun)) {
+                return ApiResponse::success([
+                    'message' => 'No new migrations to run',
+                    'applied_migrations' => []
+                ]);
+            }
 
             $newlyAppliedMigrations = [];
             $errors = [];
 
-            foreach ($migrationFiles as $file) {
-                $className = pathinfo($file, PATHINFO_FILENAME);
+            foreach ($migrationsToRun as $filename) {
+                $file = $this->migrationsPath . $filename;
                 require_once $file;
 
                 // Extract the actual class name from the file
@@ -44,36 +56,26 @@ class MigrationController {
                     $className = 'DietitianAssist\\Migration\\' . $matches[1];
                 }
 
-                // Extract version number from filename (e.g., "001" from "001_initial_setup.php")
-                if (preg_match('/^(\d+)_/', basename($file), $matches)) {
-                    $version = $matches[1];
+                if (!class_exists($className)) {
+                    $errors[] = "Migration class {$className} not found in {$file}";
+                    continue;
+                }
+
+                try {
+                    $migration = new $className();
+                    $migration->up($this->db);
                     
-                    // Skip if migration is already applied
-                    if (in_array($version, $appliedMigrations)) {
-                        continue;
-                    }
-
-                    if (!class_exists($className)) {
-                        $errors[] = "Migration class {$className} not found in {$file}";
-                        continue;
-                    }
-
-                    try {
-                        $migration = new $className();
-                        $migration->up($this->db);
-                        
-                        // Record the migration in SchemaVersion
-                        $stmt = $this->db->prepare("
-                            INSERT INTO SchemaVersion (version, description) 
-                            VALUES (?, ?)
-                        ");
-                        $stmt->execute([$version, "Migration {$version} applied"]);
-                        
-                        $newlyAppliedMigrations[] = $className;
-                    } catch (\Exception $e) {
-                        $errors[] = "Error running migration {$className}: " . $e->getMessage();
-                        throw $e; // Re-throw to trigger rollback
-                    }
+                    // Record the migration in SchemaVersion with full filename
+                    $stmt = $this->db->prepare("
+                        INSERT INTO SchemaVersion (version, description) 
+                        VALUES (?, ?)
+                    ");
+                    $stmt->execute([$filename, "Migration {$filename} applied"]);
+                    
+                    $newlyAppliedMigrations[] = $className;
+                } catch (\Exception $e) {
+                    $errors[] = "Error running migration {$className}: " . $e->getMessage();
+                    throw $e; // Re-throw to trigger rollback
                 }
             }
 
@@ -108,17 +110,23 @@ class MigrationController {
             $stmt = $this->db->query("SELECT version FROM SchemaVersion ORDER BY versionId DESC");
             $appliedMigrations = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
+            if (empty($appliedMigrations)) {
+                return ApiResponse::success([
+                    'message' => 'No migrations to roll back',
+                    'rolled_back_migrations' => []
+                ]);
+            }
+
             $rolledBackMigrations = [];
             $errors = [];
 
-            foreach ($appliedMigrations as $version) {
-                $migrationFile = glob($this->migrationsPath . $version . '_*.php');
-                if (empty($migrationFile)) {
-                    $errors[] = "Migration file for version {$version} not found";
+            foreach ($appliedMigrations as $filename) {
+                $file = $this->migrationsPath . $filename;
+                if (!file_exists($file)) {
+                    $errors[] = "Migration file {$filename} not found";
                     continue;
                 }
 
-                $file = $migrationFile[0];
                 require_once $file;
 
                 // Extract the actual class name from the file
@@ -138,7 +146,7 @@ class MigrationController {
                     
                     // Remove the migration record from SchemaVersion
                     $stmt = $this->db->prepare("DELETE FROM SchemaVersion WHERE version = ?");
-                    $stmt->execute([$version]);
+                    $stmt->execute([$filename]);
                     
                     $rolledBackMigrations[] = $className;
                 } catch (\Exception $e) {
