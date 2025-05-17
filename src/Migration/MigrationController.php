@@ -30,7 +30,7 @@ class MigrationController {
                 // Extract the actual class name from the file
                 $fileContent = file_get_contents($file);
                 if (preg_match('/class\s+(\w+)/', $fileContent, $matches)) {
-                    $className = $matches[1];
+                    $className = 'DietitianAssist\\Migration\\' . $matches[1];
                 }
 
                 if (!class_exists($className)) {
@@ -77,7 +77,7 @@ class MigrationController {
                 // Extract the actual class name from the file
                 $fileContent = file_get_contents($file);
                 if (preg_match('/class\s+(\w+)/', $fileContent, $matches)) {
-                    $className = $matches[1];
+                    $className = 'DietitianAssist\\Migration\\' . $matches[1];
                 }
 
                 if (!class_exists($className)) {
