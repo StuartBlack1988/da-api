@@ -27,6 +27,12 @@ class MigrationController {
                 $className = pathinfo($file, PATHINFO_FILENAME);
                 require_once $file;
 
+                // Extract the actual class name from the file
+                $fileContent = file_get_contents($file);
+                if (preg_match('/class\s+(\w+)/', $fileContent, $matches)) {
+                    $className = $matches[1];
+                }
+
                 if (!class_exists($className)) {
                     $errors[] = "Migration class {$className} not found in {$file}";
                     continue;
@@ -67,6 +73,12 @@ class MigrationController {
             foreach ($migrationFiles as $file) {
                 $className = pathinfo($file, PATHINFO_FILENAME);
                 require_once $file;
+
+                // Extract the actual class name from the file
+                $fileContent = file_get_contents($file);
+                if (preg_match('/class\s+(\w+)/', $fileContent, $matches)) {
+                    $className = $matches[1];
+                }
 
                 if (!class_exists($className)) {
                     $errors[] = "Migration class {$className} not found in {$file}";
