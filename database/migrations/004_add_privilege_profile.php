@@ -25,26 +25,29 @@ class AddPrivilegeProfile004 {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
 
-        // Remove privilegeId from details tables
-        $db->exec("
-            ALTER TABLE `ReceptionistDetails` 
-            DROP FOREIGN KEY `ReceptionistDetails_ibfk_1`;
-        ");
+        // Get the actual foreign key names
+        $fkNames = [];
+        $tables = ['ReceptionistDetails', 'PracticeManagerDetails', 'DietitianDetails', 'PatientDetails'];
+        
+        foreach ($tables as $table) {
+            $result = $db->query("
+                SELECT CONSTRAINT_NAME 
+                FROM information_schema.TABLE_CONSTRAINTS 
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = '$table'
+                AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+                AND REFERENCED_TABLE_NAME = 'Privileges'
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (!empty($result)) {
+                $fkNames[$table] = $result[0]['CONSTRAINT_NAME'];
+            }
+        }
 
-        $db->exec("
-            ALTER TABLE `PracticeManagerDetails` 
-            DROP FOREIGN KEY `PracticeManagerDetails_ibfk_1`;
-        ");
-
-        $db->exec("
-            ALTER TABLE `DietitianDetails` 
-            DROP FOREIGN KEY `DietitianDetails_ibfk_1`;
-        ");
-
-        $db->exec("
-            ALTER TABLE `PatientDetails` 
-            DROP FOREIGN KEY `PatientDetails_ibfk_1`;
-        ");
+        // Drop foreign keys if they exist
+        foreach ($fkNames as $table => $fkName) {
+            $db->exec("ALTER TABLE `$table` DROP FOREIGN KEY `$fkName`");
+        }
 
         // Now drop the columns
         $db->exec("
