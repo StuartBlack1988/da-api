@@ -20,14 +20,23 @@ class MigrationController {
     }
 
     private function getAppliedMigrations() {
-        $stmt = $this->db->query("SELECT version FROM SchemaVersion ORDER BY versionId");
+        // Get only the numeric version numbers, not the full filenames
+        $stmt = $this->db->query("
+            SELECT DISTINCT SUBSTRING_INDEX(version, '_', 1) as version 
+            FROM SchemaVersion 
+            ORDER BY CAST(SUBSTRING_INDEX(version, '_', 1) AS UNSIGNED)
+        ");
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
     private function getAvailableMigrations() {
         $migrationFiles = glob($this->migrationsPath . '*.php');
         sort($migrationFiles); // Ensure migrations are in order
-        return array_map('basename', $migrationFiles);
+        return array_map(function($file) {
+            // Extract just the version number from the filename
+            $filename = basename($file);
+            return substr($filename, 0, strpos($filename, '_'));
+        }, $migrationFiles);
     }
 
     public function runMigrations() {
@@ -40,6 +49,15 @@ class MigrationController {
                 $this->db->beginTransaction();
                 $this->log("Transaction started");
             }
+
+            // Clean up any duplicate entries in SchemaVersion
+            $this->log("Cleaning up duplicate entries in SchemaVersion");
+            $this->db->exec("
+                DELETE t1 FROM SchemaVersion t1
+                INNER JOIN SchemaVersion t2
+                WHERE t1.versionId > t2.versionId
+                AND SUBSTRING_INDEX(t1.version, '_', 1) = SUBSTRING_INDEX(t2.version, '_', 1)
+            ");
 
             // Get lists of migrations
             $appliedMigrations = $this->getAppliedMigrations();
@@ -64,7 +82,16 @@ class MigrationController {
             $newlyAppliedMigrations = [];
             $errors = [];
 
-            foreach ($migrationsToRun as $filename) {
+            foreach ($migrationsToRun as $version) {
+                // Find the corresponding PHP file
+                $migrationFiles = glob($this->migrationsPath . $version . '_*.php');
+                if (empty($migrationFiles)) {
+                    $error = "No migration file found for version {$version}";
+                    $this->log("ERROR: " . $error);
+                    $errors[] = $error;
+                    continue;
+                }
+                $filename = basename($migrationFiles[0]);
                 $this->log("Processing migration: " . $filename);
                 $file = $this->migrationsPath . $filename;
                 require_once $file;
@@ -94,13 +121,13 @@ class MigrationController {
                     $this->log("Running migration up() method");
                     $migration->up($this->db);
                     
-                    // Record the migration in SchemaVersion with full filename
+                    // Record the migration in SchemaVersion with just the version number
                     $this->log("Recording migration in SchemaVersion table");
                     $stmt = $this->db->prepare("
                         INSERT INTO SchemaVersion (version, description) 
                         VALUES (?, ?)
                     ");
-                    $stmt->execute([$filename, "Migration {$filename} applied"]);
+                    $stmt->execute([$version, "Migration {$filename} applied"]);
                     
                     $newlyAppliedMigrations[] = $className;
                     $this->log("Successfully completed migration: " . $filename);
@@ -161,7 +188,11 @@ class MigrationController {
             }
 
             // Get applied migrations in reverse order
-            $stmt = $this->db->query("SELECT version FROM SchemaVersion ORDER BY versionId DESC");
+            $stmt = $this->db->query("
+                SELECT DISTINCT SUBSTRING_INDEX(version, '_', 1) as version 
+                FROM SchemaVersion 
+                ORDER BY CAST(SUBSTRING_INDEX(version, '_', 1) AS UNSIGNED) DESC
+            ");
             $appliedMigrations = $stmt->fetchAll(PDO::FETCH_COLUMN);
             $this->log("Found " . count($appliedMigrations) . " migrations to roll back");
 
@@ -180,16 +211,18 @@ class MigrationController {
             $rolledBackMigrations = [];
             $errors = [];
 
-            foreach ($appliedMigrations as $filename) {
-                $this->log("Processing rollback for: " . $filename);
-                $file = $this->migrationsPath . $filename;
-                if (!file_exists($file)) {
-                    $error = "Migration file {$filename} not found";
+            foreach ($appliedMigrations as $version) {
+                // Find the corresponding PHP file
+                $migrationFiles = glob($this->migrationsPath . $version . '_*.php');
+                if (empty($migrationFiles)) {
+                    $error = "No migration file found for version {$version}";
                     $this->log("ERROR: " . $error);
                     $errors[] = $error;
                     continue;
                 }
-
+                $filename = basename($migrationFiles[0]);
+                $this->log("Processing rollback for: " . $filename);
+                $file = $this->migrationsPath . $filename;
                 require_once $file;
 
                 // Extract the actual class name from the file
@@ -217,10 +250,13 @@ class MigrationController {
                     $this->log("Running migration down() method");
                     $migration->down($this->db);
                     
-                    // Remove the migration record from SchemaVersion
-                    $this->log("Removing migration record from SchemaVersion");
-                    $stmt = $this->db->prepare("DELETE FROM SchemaVersion WHERE version = ?");
-                    $stmt->execute([$filename]);
+                    // Remove all migration records for this version from SchemaVersion
+                    $this->log("Removing migration records from SchemaVersion");
+                    $stmt = $this->db->prepare("
+                        DELETE FROM SchemaVersion 
+                        WHERE SUBSTRING_INDEX(version, '_', 1) = ?
+                    ");
+                    $stmt->execute([$version]);
                     
                     $rolledBackMigrations[] = $className;
                     $this->log("Successfully rolled back migration: " . $filename);
