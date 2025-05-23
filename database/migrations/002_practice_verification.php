@@ -59,17 +59,25 @@ class PracticeVerification002 {
                 $this->log("Successfully dropped index idx_practice_verified");
             } catch (\Exception $e) {
                 $this->log("Note: Index idx_practice_verified does not exist or could not be dropped: " . $e->getMessage());
-                // Continue with column removal even if index drop fails
             }
             
-            // Then drop the columns
-            $this->log("Dropping verification columns");
-            $db->exec("
-                ALTER TABLE `Practice`
-                DROP COLUMN `isVerified`,
-                DROP COLUMN `verificationDate`,
-                DROP COLUMN `verificationNotes`
-            ");
+            // Check and drop each column individually
+            $columns = ['isVerified', 'verificationDate', 'verificationNotes'];
+            foreach ($columns as $column) {
+                try {
+                    $this->log("Checking if column {$column} exists");
+                    $result = $db->query("SHOW COLUMNS FROM `Practice` LIKE '{$column}'");
+                    if ($result->rowCount() > 0) {
+                        $this->log("Dropping column {$column}");
+                        $db->exec("ALTER TABLE `Practice` DROP COLUMN `{$column}`");
+                        $this->log("Successfully dropped column {$column}");
+                    } else {
+                        $this->log("Column {$column} does not exist, skipping");
+                    }
+                } catch (\Exception $e) {
+                    $this->log("Note: Could not drop column {$column}: " . $e->getMessage());
+                }
+            }
 
             $this->log("Rollback of migration 002 completed successfully");
 
