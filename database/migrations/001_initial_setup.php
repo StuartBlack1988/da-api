@@ -334,12 +334,12 @@ class InitialSetup001 {
         try {
             $this->log("Starting rollback of migration 001: Initial Setup");
             
-            // Drop tables in reverse order
+            // Drop tables in reverse order of dependencies
+            $this->log("Dropping PracticeUser table (has foreign keys to all other tables)");
+            $db->exec("DROP TABLE IF EXISTS `PracticeUser`");
+            
             $this->log("Dropping PatientDetails table");
             $db->exec("DROP TABLE IF EXISTS `PatientDetails`");
-            
-            $this->log("Dropping PracticeUser table");
-            $db->exec("DROP TABLE IF EXISTS `PracticeUser`");
             
             $this->log("Dropping DietitianDetails table");
             $db->exec("DROP TABLE IF EXISTS `DietitianDetails`");
@@ -350,9 +350,6 @@ class InitialSetup001 {
             $this->log("Dropping ReceptionistDetails table");
             $db->exec("DROP TABLE IF EXISTS `ReceptionistDetails`");
             
-            $this->log("Dropping Practice table");
-            $db->exec("DROP TABLE IF EXISTS `Practice`");
-            
             $this->log("Dropping ApiAuth table");
             $db->exec("DROP TABLE IF EXISTS `ApiAuth`");
             
@@ -361,6 +358,9 @@ class InitialSetup001 {
             
             $this->log("Dropping User table");
             $db->exec("DROP TABLE IF EXISTS `User`");
+            
+            $this->log("Dropping Practice table");
+            $db->exec("DROP TABLE IF EXISTS `Practice`");
             
             $this->log("Dropping UserStatus table");
             $db->exec("DROP TABLE IF EXISTS `UserStatus`");
