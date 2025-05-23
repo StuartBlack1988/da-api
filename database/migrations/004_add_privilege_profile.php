@@ -48,13 +48,20 @@ class AddPrivilegeProfile004 {
             $db->exec("ALTER TABLE `$table` DROP FOREIGN KEY `$fkName`");
         }
 
-        // Now drop the columns
-        $db->exec("
-            ALTER TABLE `ReceptionistDetails` DROP COLUMN `privilegeId`;
-            ALTER TABLE `PracticeManagerDetails` DROP COLUMN `privilegeId`;
-            ALTER TABLE `DietitianDetails` DROP COLUMN `privilegeId`;
-            ALTER TABLE `PatientDetails` DROP COLUMN `privilegeId`;
-        ");
+        // Check and drop columns if they exist
+        foreach ($tables as $table) {
+            $result = $db->query("
+                SELECT COLUMN_NAME 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = '$table'
+                AND COLUMN_NAME = 'privilegeId'
+            ")->fetchAll(\PDO::FETCH_ASSOC);
+            
+            if (!empty($result)) {
+                $db->exec("ALTER TABLE `$table` DROP COLUMN `privilegeId`");
+            }
+        }
     }
 
     public function down($db) {
