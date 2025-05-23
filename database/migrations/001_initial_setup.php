@@ -334,6 +334,10 @@ class InitialSetup001 {
         try {
             $this->log("Starting rollback of migration 001: Initial Setup");
             
+            // Disable foreign key checks
+            $this->log("Disabling foreign key checks");
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+            
             // Drop tables in reverse order of dependencies
             $this->log("Dropping PracticeUser table (has foreign keys to all other tables)");
             $db->exec("DROP TABLE IF EXISTS `PracticeUser`");
@@ -371,9 +375,21 @@ class InitialSetup001 {
             $this->log("Dropping SchemaVersion table");
             $db->exec("DROP TABLE IF EXISTS `SchemaVersion`");
 
+            // Re-enable foreign key checks
+            $this->log("Re-enabling foreign key checks");
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+
             $this->log("Rollback of migration 001 completed successfully");
 
         } catch (\Exception $e) {
+            // Make sure to re-enable foreign key checks even if an error occurs
+            try {
+                $this->log("Re-enabling foreign key checks after error");
+                $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            } catch (\Exception $e2) {
+                $this->log("Failed to re-enable foreign key checks: " . $e2->getMessage());
+            }
+            
             $this->log("Rollback failed at: " . $e->getMessage());
             $this->log("Stack trace: " . $e->getTraceAsString());
             throw $e;
