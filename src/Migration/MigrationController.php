@@ -8,10 +8,15 @@ use DietitianAssist\Core\ApiResponse;
 class MigrationController {
     private $db;
     private $migrationsPath;
+    private $logs = [];
 
     public function __construct(PDO $db) {
         $this->db = $db;
         $this->migrationsPath = __DIR__ . '/../../database/migrations/';
+    }
+
+    private function log($message) {
+        $this->logs[] = date('Y-m-d H:i:s') . ' - ' . $message;
     }
 
     private function getAppliedMigrations() {
@@ -27,24 +32,32 @@ class MigrationController {
 
     public function runMigrations() {
         try {
+            $this->logs = []; // Reset logs
+            $this->log("Starting migration process");
+
             // Start a transaction for all migrations
             if (!$this->db->inTransaction()) {
                 $this->db->beginTransaction();
+                $this->log("Transaction started");
             }
 
             // Get lists of migrations
             $appliedMigrations = $this->getAppliedMigrations();
             $availableMigrations = $this->getAvailableMigrations();
+            $this->log("Found " . count($availableMigrations) . " available migrations");
+            $this->log("Found " . count($appliedMigrations) . " applied migrations");
 
             // Find migrations that need to be run
             $migrationsToRun = array_diff($availableMigrations, $appliedMigrations);
             if (empty($migrationsToRun)) {
                 if ($this->db->inTransaction()) {
                     $this->db->commit();
+                    $this->log("No new migrations to run, committing transaction");
                 }
                 return ApiResponse::success([
                     'message' => 'No new migrations to run',
-                    'applied_migrations' => []
+                    'applied_migrations' => [],
+                    'logs' => $this->logs
                 ]);
             }
 
@@ -52,6 +65,7 @@ class MigrationController {
             $errors = [];
 
             foreach ($migrationsToRun as $filename) {
+                $this->log("Processing migration: " . $filename);
                 $file = $this->migrationsPath . $filename;
                 require_once $file;
 
@@ -62,15 +76,26 @@ class MigrationController {
                 }
 
                 if (!class_exists($className)) {
-                    $errors[] = "Migration class {$className} not found in {$file}";
+                    $error = "Migration class {$className} not found in {$file}";
+                    $this->log("ERROR: " . $error);
+                    $errors[] = $error;
                     continue;
                 }
 
                 try {
+                    $this->log("Instantiating migration class: " . $className);
                     $migration = new $className();
+                    
+                    // Set up logging callback
+                    $migration->setLogCallback(function($message) {
+                        $this->log($message);
+                    });
+                    
+                    $this->log("Running migration up() method");
                     $migration->up($this->db);
                     
                     // Record the migration in SchemaVersion with full filename
+                    $this->log("Recording migration in SchemaVersion table");
                     $stmt = $this->db->prepare("
                         INSERT INTO SchemaVersion (version, description) 
                         VALUES (?, ?)
@@ -78,8 +103,12 @@ class MigrationController {
                     $stmt->execute([$filename, "Migration {$filename} applied"]);
                     
                     $newlyAppliedMigrations[] = $className;
+                    $this->log("Successfully completed migration: " . $filename);
                 } catch (\Exception $e) {
-                    $errors[] = "Error running migration {$className}: " . $e->getMessage();
+                    $error = "Error running migration {$className}: " . $e->getMessage();
+                    $this->log("ERROR: " . $error);
+                    $this->log("Stack trace: " . $e->getTraceAsString());
+                    $errors[] = $error;
                     throw $e; // Re-throw to trigger rollback
                 }
             }
@@ -87,42 +116,64 @@ class MigrationController {
             if (!empty($errors)) {
                 if ($this->db->inTransaction()) {
                     $this->db->rollBack();
+                    $this->log("Rolling back transaction due to errors");
                 }
-                return ApiResponse::error(implode("\n", $errors));
+                return ApiResponse::error(implode("\n", $errors), [
+                    'logs' => $this->logs
+                ]);
             }
 
             // Commit all migrations
             if ($this->db->inTransaction()) {
                 $this->db->commit();
+                $this->log("Successfully committed all migrations");
             }
 
             return ApiResponse::success([
                 'message' => 'Migrations completed successfully',
-                'applied_migrations' => $newlyAppliedMigrations
+                'applied_migrations' => $newlyAppliedMigrations,
+                'logs' => $this->logs
             ]);
 
         } catch (\Exception $e) {
             // Rollback on any error
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
+                $this->log("Rolling back transaction due to exception");
             }
-            return ApiResponse::error('Migration failed: ' . $e->getMessage());
+            $this->log("FATAL ERROR: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            return ApiResponse::error('Migration failed: ' . $e->getMessage(), [
+                'logs' => $this->logs
+            ]);
         }
     }
 
     public function rollbackMigrations() {
         try {
+            $this->logs = []; // Reset logs
+            $this->log("Starting rollback process");
+
             // Start a transaction for all rollbacks
-            $this->db->beginTransaction();
+            if (!$this->db->inTransaction()) {
+                $this->db->beginTransaction();
+                $this->log("Transaction started");
+            }
 
             // Get applied migrations in reverse order
             $stmt = $this->db->query("SELECT version FROM SchemaVersion ORDER BY versionId DESC");
             $appliedMigrations = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $this->log("Found " . count($appliedMigrations) . " migrations to roll back");
 
             if (empty($appliedMigrations)) {
+                if ($this->db->inTransaction()) {
+                    $this->db->commit();
+                    $this->log("No migrations to roll back, committing transaction");
+                }
                 return ApiResponse::success([
                     'message' => 'No migrations to roll back',
-                    'rolled_back_migrations' => []
+                    'rolled_back_migrations' => [],
+                    'logs' => $this->logs
                 ]);
             }
 
@@ -130,9 +181,12 @@ class MigrationController {
             $errors = [];
 
             foreach ($appliedMigrations as $filename) {
+                $this->log("Processing rollback for: " . $filename);
                 $file = $this->migrationsPath . $filename;
                 if (!file_exists($file)) {
-                    $errors[] = "Migration file {$filename} not found";
+                    $error = "Migration file {$filename} not found";
+                    $this->log("ERROR: " . $error);
+                    $errors[] = $error;
                     continue;
                 }
 
@@ -145,44 +199,73 @@ class MigrationController {
                 }
 
                 if (!class_exists($className)) {
-                    $errors[] = "Migration class {$className} not found in {$file}";
+                    $error = "Migration class {$className} not found in {$file}";
+                    $this->log("ERROR: " . $error);
+                    $errors[] = $error;
                     continue;
                 }
 
                 try {
+                    $this->log("Instantiating migration class: " . $className);
                     $migration = new $className();
+                    
+                    // Set up logging callback
+                    $migration->setLogCallback(function($message) {
+                        $this->log($message);
+                    });
+                    
+                    $this->log("Running migration down() method");
                     $migration->down($this->db);
                     
                     // Remove the migration record from SchemaVersion
+                    $this->log("Removing migration record from SchemaVersion");
                     $stmt = $this->db->prepare("DELETE FROM SchemaVersion WHERE version = ?");
                     $stmt->execute([$filename]);
                     
                     $rolledBackMigrations[] = $className;
+                    $this->log("Successfully rolled back migration: " . $filename);
                 } catch (\Exception $e) {
-                    $errors[] = "Error rolling back migration {$className}: " . $e->getMessage();
+                    $error = "Error rolling back migration {$className}: " . $e->getMessage();
+                    $this->log("ERROR: " . $error);
+                    $this->log("Stack trace: " . $e->getTraceAsString());
+                    $errors[] = $error;
                     throw $e; // Re-throw to trigger rollback
                 }
             }
 
             if (!empty($errors)) {
-                $this->db->rollBack();
-                return ApiResponse::error(implode("\n", $errors));
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                    $this->log("Rolling back transaction due to errors");
+                }
+                return ApiResponse::error(implode("\n", $errors), [
+                    'logs' => $this->logs
+                ]);
             }
 
             // Commit all rollbacks
-            $this->db->commit();
+            if ($this->db->inTransaction()) {
+                $this->db->commit();
+                $this->log("Successfully committed all rollbacks");
+            }
 
             return ApiResponse::success([
                 'message' => 'Migrations rolled back successfully',
-                'rolled_back_migrations' => $rolledBackMigrations
+                'rolled_back_migrations' => $rolledBackMigrations,
+                'logs' => $this->logs
             ]);
 
         } catch (\Exception $e) {
             // Rollback on any error
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
+                $this->log("Rolling back transaction due to exception");
             }
-            return ApiResponse::error('Rollback failed: ' . $e->getMessage());
+            $this->log("FATAL ERROR: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            return ApiResponse::error('Rollback failed: ' . $e->getMessage(), [
+                'logs' => $this->logs
+            ]);
         }
     }
 } 
