@@ -23,13 +23,15 @@ class ApiResponse {
      * 
      * @param string $message The error message
      * @param int $statusCode The HTTP status code
+     * @param array $data Additional data to include in the response
      * @return array The response array
      */
-    public static function error(string $message, int $statusCode = 400): array {
+    public static function error(string $message, int $statusCode = 400, array $data = []): array {
         http_response_code($statusCode);
         return [
             'status' => 'error',
-            'message' => $message
+            'message' => $message,
+            'data' => $data
         ];
     }
 } 
