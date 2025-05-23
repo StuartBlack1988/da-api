@@ -36,7 +36,7 @@ class AddPrivilegeProfile004 {
                 WHERE TABLE_SCHEMA = DATABASE()
                 AND TABLE_NAME = '$table'
                 AND REFERENCED_TABLE_NAME = 'Privileges'
-            ")->fetchAll(PDO::FETCH_ASSOC);
+            ")->fetchAll(\PDO::FETCH_ASSOC);
             
             if (!empty($result)) {
                 $fkNames[$table] = $result[0]['CONSTRAINT_NAME'];
