@@ -32,10 +32,9 @@ class AddPrivilegeProfile004 {
         foreach ($tables as $table) {
             $result = $db->query("
                 SELECT CONSTRAINT_NAME 
-                FROM information_schema.TABLE_CONSTRAINTS 
+                FROM information_schema.KEY_COLUMN_USAGE 
                 WHERE TABLE_SCHEMA = DATABASE()
                 AND TABLE_NAME = '$table'
-                AND CONSTRAINT_TYPE = 'FOREIGN KEY'
                 AND REFERENCED_TABLE_NAME = 'Privileges'
             ")->fetchAll(PDO::FETCH_ASSOC);
             
