@@ -118,7 +118,7 @@ class MigrationController {
                     $this->db->rollBack();
                     $this->log("Rolling back transaction due to errors");
                 }
-                return ApiResponse::error(implode("\n", $errors), [
+                return ApiResponse::error(implode("\n", $errors), 500, [
                     'logs' => $this->logs
                 ]);
             }
@@ -143,7 +143,7 @@ class MigrationController {
             }
             $this->log("FATAL ERROR: " . $e->getMessage());
             $this->log("Stack trace: " . $e->getTraceAsString());
-            return ApiResponse::error('Migration failed: ' . $e->getMessage(), [
+            return ApiResponse::error('Migration failed: ' . $e->getMessage(), 500, [
                 'logs' => $this->logs
             ]);
         }
@@ -238,7 +238,7 @@ class MigrationController {
                     $this->db->rollBack();
                     $this->log("Rolling back transaction due to errors");
                 }
-                return ApiResponse::error(implode("\n", $errors), [
+                return ApiResponse::error(implode("\n", $errors), 500, [
                     'logs' => $this->logs
                 ]);
             }
@@ -263,7 +263,7 @@ class MigrationController {
             }
             $this->log("FATAL ERROR: " . $e->getMessage());
             $this->log("Stack trace: " . $e->getTraceAsString());
-            return ApiResponse::error('Rollback failed: ' . $e->getMessage(), [
+            return ApiResponse::error('Rollback failed: ' . $e->getMessage(), 500, [
                 'logs' => $this->logs
             ]);
         }
