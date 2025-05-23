@@ -28,7 +28,9 @@ class MigrationController {
     public function runMigrations() {
         try {
             // Start a transaction for all migrations
-            $this->db->beginTransaction();
+            if (!$this->db->inTransaction()) {
+                $this->db->beginTransaction();
+            }
 
             // Get lists of migrations
             $appliedMigrations = $this->getAppliedMigrations();
@@ -37,6 +39,9 @@ class MigrationController {
             // Find migrations that need to be run
             $migrationsToRun = array_diff($availableMigrations, $appliedMigrations);
             if (empty($migrationsToRun)) {
+                if ($this->db->inTransaction()) {
+                    $this->db->commit();
+                }
                 return ApiResponse::success([
                     'message' => 'No new migrations to run',
                     'applied_migrations' => []
@@ -80,12 +85,16 @@ class MigrationController {
             }
 
             if (!empty($errors)) {
-                $this->db->rollBack();
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
                 return ApiResponse::error(implode("\n", $errors));
             }
 
             // Commit all migrations
-            $this->db->commit();
+            if ($this->db->inTransaction()) {
+                $this->db->commit();
+            }
 
             return ApiResponse::success([
                 'message' => 'Migrations completed successfully',
