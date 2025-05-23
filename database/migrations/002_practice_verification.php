@@ -51,9 +51,21 @@ class PracticeVerification002 {
             
             // Remove verification fields from Practice table
             $this->log("Removing verification fields from Practice table");
+            
+            // First try to drop the index if it exists
+            try {
+                $this->log("Attempting to drop index idx_practice_verified");
+                $db->exec("ALTER TABLE `Practice` DROP INDEX `idx_practice_verified`");
+                $this->log("Successfully dropped index idx_practice_verified");
+            } catch (\Exception $e) {
+                $this->log("Note: Index idx_practice_verified does not exist or could not be dropped: " . $e->getMessage());
+                // Continue with column removal even if index drop fails
+            }
+            
+            // Then drop the columns
+            $this->log("Dropping verification columns");
             $db->exec("
                 ALTER TABLE `Practice`
-                DROP INDEX `idx_practice_verified`,
                 DROP COLUMN `isVerified`,
                 DROP COLUMN `verificationDate`,
                 DROP COLUMN `verificationNotes`
