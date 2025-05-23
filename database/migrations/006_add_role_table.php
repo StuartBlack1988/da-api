@@ -54,6 +54,29 @@ class AddRoleTable006 {
         }
     }
 
+    private function waitForLocks($db, $tableName) {
+        $this->log("Checking for locks on table: " . $tableName);
+        $maxWait = 30; // seconds
+        $startTime = time();
+        
+        while (time() - $startTime < $maxWait) {
+            $stmt = $db->query("
+                SELECT * FROM information_schema.INNODB_LOCKS 
+                WHERE lock_table = DATABASE() + '.' + '$tableName'
+            ");
+            
+            if ($stmt->rowCount() == 0) {
+                $this->log("No locks found on table: " . $tableName);
+                return true;
+            }
+            
+            $this->log("Locks found, waiting...");
+            sleep(1);
+        }
+        
+        throw new \Exception("Timeout waiting for locks on table: " . $tableName);
+    }
+
     public function up($db) {
         try {
             $this->log("Starting migration 006: AddRoleTable");
@@ -127,17 +150,21 @@ class AddRoleTable006 {
                 FROM `User`
             ", [$userRoleId], "Copy data to new User table");
 
-            // Drop old table and rename new one
-            $this->log("Swapping User tables");
-            $this->executeWithRetry($db, "
-                RENAME TABLE 
-                    `User` TO `User_old`,
-                    `User_new` TO `User`
-            ", [], "Swap User tables");
+            // Wait for any locks on the User table to be released
+            $this->waitForLocks($db, 'User');
 
-            // Drop old table
+            // Set a longer lock timeout for the swap operation
+            $db->exec("SET innodb_lock_wait_timeout = 30");
+
+            // Drop old table and rename new one in separate steps
             $this->log("Dropping old User table");
-            $this->executeWithRetry($db, "DROP TABLE `User_old`", [], "Drop old User table");
+            $this->executeWithRetry($db, "DROP TABLE `User`", [], "Drop old User table");
+
+            $this->log("Renaming new User table");
+            $this->executeWithRetry($db, "RENAME TABLE `User_new` TO `User`", [], "Rename new User table");
+
+            // Reset lock timeout
+            $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
 
             $this->log("Migration 006 completed successfully");
 
@@ -149,7 +176,6 @@ class AddRoleTable006 {
             $this->log("Cleaning up on failure");
             try {
                 $db->exec("DROP TABLE IF EXISTS `User_new`");
-                $db->exec("DROP TABLE IF EXISTS `User_old`");
             } catch (\Exception $cleanupError) {
                 $this->log("Cleanup error: " . $cleanupError->getMessage());
             }
@@ -196,17 +222,21 @@ class AddRoleTable006 {
                 FROM `User`
             ", [], "Copy data to new User table");
 
-            // Drop old table and rename new one
-            $this->log("Swapping User tables");
-            $this->executeWithRetry($db, "
-                RENAME TABLE 
-                    `User` TO `User_old`,
-                    `User_new` TO `User`
-            ", [], "Swap User tables");
+            // Wait for any locks on the User table to be released
+            $this->waitForLocks($db, 'User');
 
-            // Drop old table
+            // Set a longer lock timeout for the swap operation
+            $db->exec("SET innodb_lock_wait_timeout = 30");
+
+            // Drop old table and rename new one in separate steps
             $this->log("Dropping old User table");
-            $this->executeWithRetry($db, "DROP TABLE `User_old`", [], "Drop old User table");
+            $this->executeWithRetry($db, "DROP TABLE `User`", [], "Drop old User table");
+
+            $this->log("Renaming new User table");
+            $this->executeWithRetry($db, "RENAME TABLE `User_new` TO `User`", [], "Rename new User table");
+
+            // Reset lock timeout
+            $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
 
             // Drop Role table
             $this->log("Dropping Role table");
@@ -222,7 +252,6 @@ class AddRoleTable006 {
             $this->log("Cleaning up on failure");
             try {
                 $db->exec("DROP TABLE IF EXISTS `User_new`");
-                $db->exec("DROP TABLE IF EXISTS `User_old`");
             } catch (\Exception $cleanupError) {
                 $this->log("Cleanup error: " . $cleanupError->getMessage());
             }
