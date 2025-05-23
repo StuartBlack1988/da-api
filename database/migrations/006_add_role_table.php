@@ -4,10 +4,11 @@ namespace DietitianAssist\Migration;
 
 class AddRoleTable006 {
     public function up($db) {
-        // Set a longer lock timeout
-        $db->exec("SET innodb_lock_wait_timeout = 50");
-
         try {
+            // Set a longer lock timeout
+            $db->exec("SET innodb_lock_wait_timeout = 50");
+            $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
             // Create Role table
             $db->exec("
                 CREATE TABLE IF NOT EXISTS `Role` (
@@ -19,37 +20,46 @@ class AddRoleTable006 {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
 
-            // Insert default roles
-            $db->exec("
-                INSERT INTO `Role` (`name`, `description`) VALUES
-                ('user', 'Regular user with standard permissions'),
-                ('super', 'Super user with elevated permissions')
+            // Insert default roles one at a time
+            $insertRole = $db->prepare("
+                INSERT INTO `Role` (`name`, `description`) 
+                VALUES (?, ?)
             ");
 
+            $insertRole->execute(['user', 'Regular user with standard permissions']);
+            $insertRole->execute(['super', 'Super user with elevated permissions']);
+
             // Get the user role ID
-            $stmt = $db->query("SELECT roleId FROM Role WHERE name = 'user'");
+            $stmt = $db->prepare("SELECT roleId FROM Role WHERE name = ?");
+            $stmt->execute(['user']);
             $userRoleId = $stmt->fetchColumn();
 
-            // Add roleId to User table without foreign key first
+            // Add roleId to User table without foreign key
             $db->exec("
                 ALTER TABLE `User` 
                 ADD COLUMN `roleId` INT NULL
             ");
 
-            // Set default role for existing users
-            $db->exec("
+            // Update users in smaller batches
+            $updateUser = $db->prepare("
                 UPDATE `User` 
-                SET `roleId` = ?
-                WHERE `roleId` IS NULL
-            ", [$userRoleId]);
+                SET `roleId` = ? 
+                WHERE `roleId` IS NULL 
+                LIMIT 1000
+            ");
 
-            // Make roleId NOT NULL after setting defaults
+            do {
+                $updateUser->execute([$userRoleId]);
+                $affected = $updateUser->rowCount();
+            } while ($affected > 0);
+
+            // Make roleId NOT NULL
             $db->exec("
                 ALTER TABLE `User` 
                 MODIFY COLUMN `roleId` INT NOT NULL
             ");
 
-            // Add foreign key constraint last
+            // Add foreign key constraint
             $db->exec("
                 ALTER TABLE `User` 
                 ADD CONSTRAINT `fk_user_role` 
@@ -57,21 +67,24 @@ class AddRoleTable006 {
             ");
 
         } catch (\Exception $e) {
-            // Reset lock timeout
+            // Reset settings
             $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
+            $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
             throw $e;
         }
 
-        // Reset lock timeout
+        // Reset settings
         $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
+        $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
     }
 
     public function down($db) {
-        // Set a longer lock timeout
-        $db->exec("SET innodb_lock_wait_timeout = 50");
-
         try {
-            // Remove foreign key constraint first
+            // Set a longer lock timeout
+            $db->exec("SET innodb_lock_wait_timeout = 50");
+            $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+            // Remove foreign key constraint
             $db->exec("
                 ALTER TABLE `User` 
                 DROP FOREIGN KEY `fk_user_role`
@@ -83,16 +96,18 @@ class AddRoleTable006 {
                 DROP COLUMN `roleId`
             ");
 
-            // Drop Role table last
+            // Drop Role table
             $db->exec("DROP TABLE IF EXISTS `Role`");
 
         } catch (\Exception $e) {
-            // Reset lock timeout
+            // Reset settings
             $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
+            $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
             throw $e;
         }
 
-        // Reset lock timeout
+        // Reset settings
         $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
+        $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
     }
 } 
