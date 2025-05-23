@@ -54,6 +54,31 @@ class AddRoleTable006 {
         }
     }
 
+    private function dropForeignKeys($db, $tableName) {
+        $this->log("Finding foreign keys referencing table: " . $tableName);
+        
+        // Get all foreign keys referencing this table
+        $stmt = $db->query("
+            SELECT 
+                TABLE_NAME,
+                CONSTRAINT_NAME
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE REFERENCED_TABLE_NAME = '$tableName'
+            AND REFERENCED_TABLE_SCHEMA = DATABASE()
+        ");
+        
+        $foreignKeys = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        
+        foreach ($foreignKeys as $fk) {
+            $this->log("Dropping foreign key: " . $fk['CONSTRAINT_NAME'] . " from table: " . $fk['TABLE_NAME']);
+            $this->executeWithRetry($db, 
+                "ALTER TABLE `{$fk['TABLE_NAME']}` DROP FOREIGN KEY `{$fk['CONSTRAINT_NAME']}`",
+                [],
+                "Drop foreign key {$fk['CONSTRAINT_NAME']}"
+            );
+        }
+    }
+
     public function up($db) {
         try {
             $this->log("Starting migration 006: AddRoleTable");
@@ -127,6 +152,9 @@ class AddRoleTable006 {
                 FROM `User`
             ", [$userRoleId], "Copy data to new User table");
 
+            // Drop foreign keys before dropping the old table
+            $this->dropForeignKeys($db, 'User');
+
             // Drop old table and rename new one in separate steps
             $this->log("Dropping old User table");
             $this->executeWithRetry($db, "DROP TABLE `User`", [], "Drop old User table");
@@ -189,6 +217,9 @@ class AddRoleTable006 {
                     `createdDate`, `modifiedDate`, `lastLogin`, `userStatusId`
                 FROM `User`
             ", [], "Copy data to new User table");
+
+            // Drop foreign keys before dropping the old table
+            $this->dropForeignKeys($db, 'User');
 
             // Drop old table and rename new one in separate steps
             $this->log("Dropping old User table");
