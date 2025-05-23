@@ -72,11 +72,6 @@ class AddRoleTable006 {
 
             // Insert default roles one at a time
             $this->log("Inserting default roles");
-            $insertRole = $db->prepare("
-                INSERT INTO `Role` (`name`, `description`) 
-                VALUES (?, ?)
-            ");
-
             $this->log("Inserting 'user' role");
             $this->executeWithRetry($db, "
                 INSERT INTO `Role` (`name`, `description`) 
@@ -96,51 +91,52 @@ class AddRoleTable006 {
             $userRoleId = $stmt->fetchColumn();
             $this->log("User role ID: " . $userRoleId);
 
-            // Add roleId to User table without foreign key
-            $this->log("Adding roleId column to User table");
+            // Create new User table with roleId
+            $this->log("Creating new User table with roleId");
             $this->executeWithRetry($db, "
-                ALTER TABLE `User` 
-                ADD COLUMN `roleId` INT NULL
-            ", [], "Add roleId column");
+                CREATE TABLE `User_new` (
+                    `userId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `email` VARCHAR(255) NOT NULL UNIQUE,
+                    `password` VARCHAR(255) NOT NULL,
+                    `name` VARCHAR(100) NOT NULL,
+                    `surname` VARCHAR(100) NOT NULL,
+                    `phoneNumber` VARCHAR(20),
+                    `statusId` INT NOT NULL,
+                    `roleId` INT NOT NULL,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `lastLogin` TIMESTAMP NULL,
+                    `lastPasswordChange` TIMESTAMP NULL,
+                    FOREIGN KEY (`statusId`) REFERENCES `UserStatus`(`statusId`),
+                    FOREIGN KEY (`roleId`) REFERENCES `Role`(`roleId`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ", [], "Create new User table");
 
-            // Update users in smaller batches
-            $this->log("Starting user role updates in batches");
-            $updateUser = $db->prepare("
-                UPDATE `User` 
-                SET `roleId` = ? 
-                WHERE `roleId` IS NULL 
-                LIMIT 1000
-            ");
-
-            $batchCount = 0;
-            do {
-                $this->log("Processing batch " . ++$batchCount);
-                $this->executeWithRetry($db, "
-                    UPDATE `User` 
-                    SET `roleId` = ? 
-                    WHERE `roleId` IS NULL 
-                    LIMIT 1000
-                ", [$userRoleId], "Update user batch " . $batchCount);
-                
-                $affected = $updateUser->rowCount();
-                $this->log("Updated " . $affected . " users in batch " . $batchCount);
-            } while ($affected > 0);
-            $this->log("All user role updates completed");
-
-            // Make roleId NOT NULL
-            $this->log("Making roleId column NOT NULL");
+            // Copy data to new table
+            $this->log("Copying data to new User table");
             $this->executeWithRetry($db, "
-                ALTER TABLE `User` 
-                MODIFY COLUMN `roleId` INT NOT NULL
-            ", [], "Make roleId NOT NULL");
+                INSERT INTO `User_new` (
+                    `userId`, `email`, `password`, `name`, `surname`, 
+                    `phoneNumber`, `statusId`, `roleId`, `createdDate`, 
+                    `lastLogin`, `lastPasswordChange`
+                )
+                SELECT 
+                    `userId`, `email`, `password`, `name`, `surname`, 
+                    `phoneNumber`, `statusId`, ?, `createdDate`, 
+                    `lastLogin`, `lastPasswordChange`
+                FROM `User`
+            ", [$userRoleId], "Copy data to new User table");
 
-            // Add foreign key constraint
-            $this->log("Adding foreign key constraint");
+            // Drop old table and rename new one
+            $this->log("Swapping User tables");
             $this->executeWithRetry($db, "
-                ALTER TABLE `User` 
-                ADD CONSTRAINT `fk_user_role` 
-                FOREIGN KEY (`roleId`) REFERENCES `Role`(`roleId`)
-            ", [], "Add foreign key constraint");
+                RENAME TABLE 
+                    `User` TO `User_old`,
+                    `User_new` TO `User`
+            ", [], "Swap User tables");
+
+            // Drop old table
+            $this->log("Dropping old User table");
+            $this->executeWithRetry($db, "DROP TABLE `User_old`", [], "Drop old User table");
 
             $this->log("Migration 006 completed successfully");
 
@@ -148,10 +144,15 @@ class AddRoleTable006 {
             $this->log("Migration failed at: " . $e->getMessage());
             $this->log("Stack trace: " . $e->getTraceAsString());
             
-            // Reset settings
-            $this->log("Resetting database settings");
-            $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
-            $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+            // Clean up on failure
+            $this->log("Cleaning up on failure");
+            try {
+                $db->exec("DROP TABLE IF EXISTS `User_new`");
+                $db->exec("DROP TABLE IF EXISTS `User_old`");
+            } catch (\Exception $cleanupError) {
+                $this->log("Cleanup error: " . $cleanupError->getMessage());
+            }
+            
             throw $e;
         }
     }
@@ -160,19 +161,50 @@ class AddRoleTable006 {
         try {
             $this->log("Starting rollback of migration 006: AddRoleTable");
             
-            // Remove foreign key constraint
-            $this->log("Removing foreign key constraint");
+            // Create new User table without roleId
+            $this->log("Creating new User table without roleId");
             $this->executeWithRetry($db, "
-                ALTER TABLE `User` 
-                DROP FOREIGN KEY `fk_user_role`
-            ", [], "Remove foreign key constraint");
+                CREATE TABLE `User_new` (
+                    `userId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `email` VARCHAR(255) NOT NULL UNIQUE,
+                    `password` VARCHAR(255) NOT NULL,
+                    `name` VARCHAR(100) NOT NULL,
+                    `surname` VARCHAR(100) NOT NULL,
+                    `phoneNumber` VARCHAR(20),
+                    `statusId` INT NOT NULL,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `lastLogin` TIMESTAMP NULL,
+                    `lastPasswordChange` TIMESTAMP NULL,
+                    FOREIGN KEY (`statusId`) REFERENCES `UserStatus`(`statusId`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ", [], "Create new User table");
 
-            // Remove roleId column
-            $this->log("Removing roleId column");
+            // Copy data to new table
+            $this->log("Copying data to new User table");
             $this->executeWithRetry($db, "
-                ALTER TABLE `User` 
-                DROP COLUMN `roleId`
-            ", [], "Remove roleId column");
+                INSERT INTO `User_new` (
+                    `userId`, `email`, `password`, `name`, `surname`, 
+                    `phoneNumber`, `statusId`, `createdDate`, 
+                    `lastLogin`, `lastPasswordChange`
+                )
+                SELECT 
+                    `userId`, `email`, `password`, `name`, `surname`, 
+                    `phoneNumber`, `statusId`, `createdDate`, 
+                    `lastLogin`, `lastPasswordChange`
+                FROM `User`
+            ", [], "Copy data to new User table");
+
+            // Drop old table and rename new one
+            $this->log("Swapping User tables");
+            $this->executeWithRetry($db, "
+                RENAME TABLE 
+                    `User` TO `User_old`,
+                    `User_new` TO `User`
+            ", [], "Swap User tables");
+
+            // Drop old table
+            $this->log("Dropping old User table");
+            $this->executeWithRetry($db, "DROP TABLE `User_old`", [], "Drop old User table");
 
             // Drop Role table
             $this->log("Dropping Role table");
@@ -184,10 +216,15 @@ class AddRoleTable006 {
             $this->log("Rollback failed at: " . $e->getMessage());
             $this->log("Stack trace: " . $e->getTraceAsString());
             
-            // Reset settings
-            $this->log("Resetting database settings");
-            $db->exec("SET innodb_lock_wait_timeout = DEFAULT");
-            $db->exec("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+            // Clean up on failure
+            $this->log("Cleaning up on failure");
+            try {
+                $db->exec("DROP TABLE IF EXISTS `User_new`");
+                $db->exec("DROP TABLE IF EXISTS `User_old`");
+            } catch (\Exception $cleanupError) {
+                $this->log("Cleanup error: " . $cleanupError->getMessage());
+            }
+            
             throw $e;
         }
     }
