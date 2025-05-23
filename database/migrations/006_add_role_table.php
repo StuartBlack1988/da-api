@@ -96,18 +96,21 @@ class AddRoleTable006 {
             $this->executeWithRetry($db, "
                 CREATE TABLE `User_new` (
                     `userId` INT AUTO_INCREMENT PRIMARY KEY,
-                    `email` VARCHAR(255) NOT NULL UNIQUE,
-                    `password` VARCHAR(255) NOT NULL,
-                    `name` VARCHAR(100) NOT NULL,
-                    `surname` VARCHAR(100) NOT NULL,
-                    `phoneNumber` VARCHAR(20),
-                    `statusId` INT NOT NULL,
-                    `roleId` INT NOT NULL,
+                    `password` VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL,
+                    `email` VARCHAR(75) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+                    `name` VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+                    `surname` VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
                     `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     `lastLogin` TIMESTAMP NULL,
-                    `lastPasswordChange` TIMESTAMP NULL,
-                    FOREIGN KEY (`statusId`) REFERENCES `UserStatus`(`statusId`),
-                    FOREIGN KEY (`roleId`) REFERENCES `Role`(`roleId`)
+                    `userStatusId` INT NOT NULL,
+                    `roleId` INT NOT NULL,
+                    FOREIGN KEY (`userStatusId`) REFERENCES `UserStatus`(`userStatusId`),
+                    FOREIGN KEY (`roleId`) REFERENCES `Role`(`roleId`),
+                    INDEX `idx_user_email` (`email`),
+                    INDEX `idx_user_name_surname` (`name`, `surname`),
+                    INDEX `idx_user_status` (`userStatusId`),
+                    INDEX `idx_user_lastlogin` (`lastLogin`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ", [], "Create new User table");
 
@@ -115,14 +118,12 @@ class AddRoleTable006 {
             $this->log("Copying data to new User table");
             $this->executeWithRetry($db, "
                 INSERT INTO `User_new` (
-                    `userId`, `email`, `password`, `name`, `surname`, 
-                    `phoneNumber`, `statusId`, `roleId`, `createdDate`, 
-                    `lastLogin`, `lastPasswordChange`
+                    `userId`, `password`, `email`, `name`, `surname`, 
+                    `createdDate`, `modifiedDate`, `lastLogin`, `userStatusId`, `roleId`
                 )
                 SELECT 
-                    `userId`, `email`, `password`, `name`, `surname`, 
-                    `phoneNumber`, `statusId`, ?, `createdDate`, 
-                    `lastLogin`, `lastPasswordChange`
+                    `userId`, `password`, `email`, `name`, `surname`, 
+                    `createdDate`, `modifiedDate`, `lastLogin`, `userStatusId`, ?
                 FROM `User`
             ", [$userRoleId], "Copy data to new User table");
 
@@ -166,16 +167,19 @@ class AddRoleTable006 {
             $this->executeWithRetry($db, "
                 CREATE TABLE `User_new` (
                     `userId` INT AUTO_INCREMENT PRIMARY KEY,
-                    `email` VARCHAR(255) NOT NULL UNIQUE,
-                    `password` VARCHAR(255) NOT NULL,
-                    `name` VARCHAR(100) NOT NULL,
-                    `surname` VARCHAR(100) NOT NULL,
-                    `phoneNumber` VARCHAR(20),
-                    `statusId` INT NOT NULL,
+                    `password` VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL,
+                    `email` VARCHAR(75) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+                    `name` VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+                    `surname` VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
                     `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     `lastLogin` TIMESTAMP NULL,
-                    `lastPasswordChange` TIMESTAMP NULL,
-                    FOREIGN KEY (`statusId`) REFERENCES `UserStatus`(`statusId`)
+                    `userStatusId` INT NOT NULL,
+                    FOREIGN KEY (`userStatusId`) REFERENCES `UserStatus`(`userStatusId`),
+                    INDEX `idx_user_email` (`email`),
+                    INDEX `idx_user_name_surname` (`name`, `surname`),
+                    INDEX `idx_user_status` (`userStatusId`),
+                    INDEX `idx_user_lastlogin` (`lastLogin`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ", [], "Create new User table");
 
@@ -183,14 +187,12 @@ class AddRoleTable006 {
             $this->log("Copying data to new User table");
             $this->executeWithRetry($db, "
                 INSERT INTO `User_new` (
-                    `userId`, `email`, `password`, `name`, `surname`, 
-                    `phoneNumber`, `statusId`, `createdDate`, 
-                    `lastLogin`, `lastPasswordChange`
+                    `userId`, `password`, `email`, `name`, `surname`, 
+                    `createdDate`, `modifiedDate`, `lastLogin`, `userStatusId`
                 )
                 SELECT 
-                    `userId`, `email`, `password`, `name`, `surname`, 
-                    `phoneNumber`, `statusId`, `createdDate`, 
-                    `lastLogin`, `lastPasswordChange`
+                    `userId`, `password`, `email`, `name`, `surname`, 
+                    `createdDate`, `modifiedDate`, `lastLogin`, `userStatusId`
                 FROM `User`
             ", [], "Copy data to new User table");
 
