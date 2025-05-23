@@ -3,111 +3,104 @@
 namespace DietitianAssist\Migration;
 
 class AddPrivilegeProfile004 {
+    private $logCallback;
+
+    public function setLogCallback($callback) {
+        $this->logCallback = $callback;
+    }
+
+    private function log($message) {
+        if ($this->logCallback) {
+            call_user_func($this->logCallback, $message);
+        }
+    }
+
     public function up($db) {
-        // Create PrivilegeProfile table
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS `PrivilegeProfile` (
-                `privilegeProfileId` INT AUTO_INCREMENT PRIMARY KEY,
-                `privilegeId` INT NOT NULL,
-                `receptionistDetailsId` INT NULL,
-                `practiceManagerDetailsId` INT NULL,
-                `dietitianDetailsId` INT NULL,
-                `patientDetailsId` INT NULL,
-                `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`),
-                FOREIGN KEY (`receptionistDetailsId`) REFERENCES `ReceptionistDetails`(`receptionistDetailsId`),
-                FOREIGN KEY (`practiceManagerDetailsId`) REFERENCES `PracticeManagerDetails`(`practiceManagerDetailsId`),
-                FOREIGN KEY (`dietitianDetailsId`) REFERENCES `DietitianDetails`(`dietitianDetailsId`),
-                FOREIGN KEY (`patientDetailsId`) REFERENCES `PatientDetails`(`patientDetailsId`),
-                INDEX `idx_privilegeprofile_privilege` (`privilegeId`),
-                INDEX `idx_privilegeprofile_details` (`receptionistDetailsId`, `practiceManagerDetailsId`, `dietitianDetailsId`, `patientDetailsId`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-
-        // Get the actual foreign key names
-        $fkNames = [];
-        $tables = ['ReceptionistDetails', 'PracticeManagerDetails', 'DietitianDetails', 'PatientDetails'];
-        
-        foreach ($tables as $table) {
-            $result = $db->query("
-                SELECT CONSTRAINT_NAME 
-                FROM information_schema.KEY_COLUMN_USAGE 
-                WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME = '$table'
-                AND REFERENCED_TABLE_NAME = 'Privileges'
-            ")->fetchAll(\PDO::FETCH_ASSOC);
+        try {
+            $this->log("Starting migration 004: Add Privilege Profile");
             
-            if (!empty($result)) {
-                $fkNames[$table] = $result[0]['CONSTRAINT_NAME'];
-            }
-        }
+            // Create PrivilegeProfile table
+            $this->log("Creating PrivilegeProfile table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `PrivilegeProfile` (
+                    `privilegeProfileId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(50) NOT NULL UNIQUE,
+                    `description` TEXT,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_privilegeprofile_name` (`name`)
+                )
+            ");
 
-        // Drop foreign keys if they exist
-        foreach ($fkNames as $table => $fkName) {
-            $db->exec("ALTER TABLE `$table` DROP FOREIGN KEY `$fkName`");
-        }
+            // Create PrivilegeProfilePrivileges table
+            $this->log("Creating PrivilegeProfilePrivileges table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `PrivilegeProfilePrivileges` (
+                    `privilegeProfilePrivilegeId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `privilegeProfileId` INT NOT NULL,
+                    `privilegeId` INT NOT NULL,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (`privilegeProfileId`) REFERENCES `PrivilegeProfile`(`privilegeProfileId`) ON DELETE CASCADE,
+                    FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`) ON DELETE CASCADE,
+                    UNIQUE KEY `idx_profile_privilege` (`privilegeProfileId`, `privilegeId`),
+                    INDEX `idx_profileprivilege_profile` (`privilegeProfileId`),
+                    INDEX `idx_profileprivilege_privilege` (`privilegeId`)
+                )
+            ");
 
-        // Check and drop columns if they exist
-        foreach ($tables as $table) {
-            $result = $db->query("
-                SELECT COLUMN_NAME 
-                FROM information_schema.COLUMNS 
-                WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME = '$table'
-                AND COLUMN_NAME = 'privilegeId'
-            ")->fetchAll(\PDO::FETCH_ASSOC);
-            
-            if (!empty($result)) {
-                $db->exec("ALTER TABLE `$table` DROP COLUMN `privilegeId`");
-            }
+            // Insert default privilege profiles
+            $this->log("Inserting default privilege profiles");
+            $db->exec("
+                INSERT INTO `PrivilegeProfile` (`name`, `description`) VALUES
+                ('admin', 'System administrator profile'),
+                ('practice_manager', 'Practice manager profile'),
+                ('dietitian', 'Dietitian profile'),
+                ('receptionist', 'Receptionist profile'),
+                ('client', 'Client/Patient profile')
+            ");
+
+            // Assign privileges to profiles
+            $this->log("Assigning privileges to profiles");
+            $db->exec("
+                INSERT INTO `PrivilegeProfilePrivileges` (`privilegeProfileId`, `privilegeId`)
+                SELECT pp.privilegeProfileId, p.privilegeId
+                FROM `PrivilegeProfile` pp
+                JOIN `Privileges` p ON pp.name = p.name
+            ");
+
+            // Record migration
+            $this->log("Recording migration in SchemaVersion");
+            $db->exec("
+                INSERT INTO `SchemaVersion` (`version`, `description`) 
+                VALUES ('004', 'Added privilege profiles')
+            ");
+
+            $this->log("Migration 004 completed successfully");
+
+        } catch (\Exception $e) {
+            $this->log("Migration failed at: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
         }
     }
 
     public function down($db) {
-        // Add back privilegeId to details tables
-        $db->exec("
-            ALTER TABLE `ReceptionistDetails` 
-            ADD COLUMN `privilegeId` INT NULL;
-        ");
+        try {
+            $this->log("Starting rollback of migration 004: Add Privilege Profile");
+            
+            // Drop PrivilegeProfilePrivileges table
+            $this->log("Dropping PrivilegeProfilePrivileges table");
+            $db->exec("DROP TABLE IF EXISTS `PrivilegeProfilePrivileges`");
+            
+            // Drop PrivilegeProfile table
+            $this->log("Dropping PrivilegeProfile table");
+            $db->exec("DROP TABLE IF EXISTS `PrivilegeProfile`");
 
-        $db->exec("
-            ALTER TABLE `PracticeManagerDetails` 
-            ADD COLUMN `privilegeId` INT NULL;
-        ");
+            $this->log("Rollback of migration 004 completed successfully");
 
-        $db->exec("
-            ALTER TABLE `DietitianDetails` 
-            ADD COLUMN `privilegeId` INT NULL;
-        ");
-
-        $db->exec("
-            ALTER TABLE `PatientDetails` 
-            ADD COLUMN `privilegeId` INT NULL;
-        ");
-
-        // Add foreign keys
-        $db->exec("
-            ALTER TABLE `ReceptionistDetails` 
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`);
-        ");
-
-        $db->exec("
-            ALTER TABLE `PracticeManagerDetails` 
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`);
-        ");
-
-        $db->exec("
-            ALTER TABLE `DietitianDetails` 
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`);
-        ");
-
-        $db->exec("
-            ALTER TABLE `PatientDetails` 
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`);
-        ");
-
-        // Drop PrivilegeProfile table
-        $db->exec("DROP TABLE IF EXISTS `PrivilegeProfile`");
+        } catch (\Exception $e) {
+            $this->log("Rollback failed at: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
+        }
     }
 } 

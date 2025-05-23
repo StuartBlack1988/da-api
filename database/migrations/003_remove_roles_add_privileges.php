@@ -3,103 +3,95 @@
 namespace DietitianAssist\Migration;
 
 class RemoveRolesAddPrivileges003 {
+    private $logCallback;
+
+    public function setLogCallback($callback) {
+        $this->logCallback = $callback;
+    }
+
+    private function log($message) {
+        if ($this->logCallback) {
+            call_user_func($this->logCallback, $message);
+        }
+    }
+
     public function up($db) {
-        // Create Privileges table
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS `Privileges` (
-                `privilegeId` INT AUTO_INCREMENT PRIMARY KEY,
-                `name` VARCHAR(50) NOT NULL UNIQUE,
-                `description` TEXT,
-                `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX `idx_privilege_name` (`name`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        try {
+            $this->log("Starting migration 003: Remove Roles Add Privileges");
+            
+            // Create Privileges table
+            $this->log("Creating Privileges table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `Privileges` (
+                    `privilegeId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(50) NOT NULL UNIQUE,
+                    `description` TEXT,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_privilege_name` (`name`)
+                )
+            ");
 
-        // Add privilegeId to ReceptionistDetails
-        $db->exec("
-            ALTER TABLE `ReceptionistDetails`
-            ADD COLUMN `privilegeId` INT NULL,
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`)
-        ");
+            // Create UserPrivileges table
+            $this->log("Creating UserPrivileges table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `UserPrivileges` (
+                    `userPrivilegeId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `userId` INT NOT NULL,
+                    `privilegeId` INT NOT NULL,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (`userId`) REFERENCES `User`(`userId`) ON DELETE CASCADE,
+                    FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`) ON DELETE CASCADE,
+                    UNIQUE KEY `idx_user_privilege` (`userId`, `privilegeId`),
+                    INDEX `idx_userprivilege_user` (`userId`),
+                    INDEX `idx_userprivilege_privilege` (`privilegeId`)
+                )
+            ");
 
-        // Add privilegeId to PracticeManagerDetails
-        $db->exec("
-            ALTER TABLE `PracticeManagerDetails`
-            ADD COLUMN `privilegeId` INT NULL,
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`)
-        ");
+            // Insert default privileges
+            $this->log("Inserting default privileges");
+            $db->exec("
+                INSERT INTO `Privileges` (`name`, `description`) VALUES
+                ('admin', 'System administrator privileges'),
+                ('practice_manager', 'Practice manager privileges'),
+                ('dietitian', 'Dietitian privileges'),
+                ('receptionist', 'Receptionist privileges'),
+                ('client', 'Client/Patient privileges')
+            ");
 
-        // Add privilegeId to DietitianDetails
-        $db->exec("
-            ALTER TABLE `DietitianDetails`
-            ADD COLUMN `privilegeId` INT NULL,
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`)
-        ");
+            // Record migration
+            $this->log("Recording migration in SchemaVersion");
+            $db->exec("
+                INSERT INTO `SchemaVersion` (`version`, `description`) 
+                VALUES ('003', 'Removed roles and added privileges system')
+            ");
 
-        // Add privilegeId to PatientDetails
-        $db->exec("
-            ALTER TABLE `PatientDetails`
-            ADD COLUMN `privilegeId` INT NULL,
-            ADD FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`)
-        ");
+            $this->log("Migration 003 completed successfully");
 
-        // Insert default privileges
-        $db->exec("
-            INSERT INTO `Privileges` (`name`, `description`) VALUES
-            ('make-bookings', 'Ability to create and manage bookings'),
-            ('view-practice-bookings', 'Ability to view practice bookings'),
-            ('view-practice-invoices', 'Ability to view practice invoices')
-        ");
-
-        // Remove roleId from PracticeUser
-        $db->exec("
-            ALTER TABLE `PracticeUser`
-            DROP FOREIGN KEY `PracticeUser_ibfk_3`,
-            DROP COLUMN `roleId`
-        ");
-
-        // Drop Role table
-        $db->exec("DROP TABLE IF EXISTS `Role`");
+        } catch (\Exception $e) {
+            $this->log("Migration failed at: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
+        }
     }
 
     public function down($db) {
-        // Recreate Role table
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS `Role` (
-                `roleId` INT AUTO_INCREMENT PRIMARY KEY,
-                `name` VARCHAR(50) NOT NULL UNIQUE,
-                `description` TEXT,
-                `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX `idx_role_name` (`name`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        try {
+            $this->log("Starting rollback of migration 003: Remove Roles Add Privileges");
+            
+            // Drop UserPrivileges table
+            $this->log("Dropping UserPrivileges table");
+            $db->exec("DROP TABLE IF EXISTS `UserPrivileges`");
+            
+            // Drop Privileges table
+            $this->log("Dropping Privileges table");
+            $db->exec("DROP TABLE IF EXISTS `Privileges`");
 
-        // Add back roleId to PracticeUser
-        $db->exec("
-            ALTER TABLE `PracticeUser`
-            ADD COLUMN `roleId` INT NOT NULL,
-            ADD FOREIGN KEY (`roleId`) REFERENCES `Role`(`roleId`)
-        ");
+            $this->log("Rollback of migration 003 completed successfully");
 
-        // Remove privilegeId from all details tables
-        $db->exec("
-            ALTER TABLE `ReceptionistDetails` DROP FOREIGN KEY `ReceptionistDetails_ibfk_1`, DROP COLUMN `privilegeId`;
-            ALTER TABLE `PracticeManagerDetails` DROP FOREIGN KEY `PracticeManagerDetails_ibfk_1`, DROP COLUMN `privilegeId`;
-            ALTER TABLE `DietitianDetails` DROP FOREIGN KEY `DietitianDetails_ibfk_1`, DROP COLUMN `privilegeId`;
-            ALTER TABLE `PatientDetails` DROP FOREIGN KEY `PatientDetails_ibfk_1`, DROP COLUMN `privilegeId`
-        ");
-
-        // Drop Privileges table
-        $db->exec("DROP TABLE IF EXISTS `Privileges`");
-
-        // Insert default roles
-        $db->exec("
-            INSERT INTO `Role` (`name`, `description`) VALUES
-            ('admin', 'System administrator'),
-            ('practice_manager', 'Practice manager'),
-            ('dietitian', 'Dietitian'),
-            ('receptionist', 'Receptionist'),
-            ('client', 'Client/Patient')
-        ");
+        } catch (\Exception $e) {
+            $this->log("Rollback failed at: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
+        }
     }
 } 

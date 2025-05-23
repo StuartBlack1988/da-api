@@ -3,55 +3,64 @@
 namespace DietitianAssist\Migration;
 
 class AddDefaultPrivilegeFields005 {
+    private $logCallback;
+
+    public function setLogCallback($callback) {
+        $this->logCallback = $callback;
+    }
+
+    private function log($message) {
+        if ($this->logCallback) {
+            call_user_func($this->logCallback, $message);
+        }
+    }
+
     public function up($db) {
-        // Add default privilege fields to Privileges table
-        $db->exec("
-            ALTER TABLE `Privileges`
-            ADD COLUMN `isPracticeManagerDefault` BOOLEAN DEFAULT FALSE,
-            ADD COLUMN `isReceptionistDefault` BOOLEAN DEFAULT FALSE,
-            ADD COLUMN `isDietitianDefault` BOOLEAN DEFAULT FALSE,
-            ADD COLUMN `isPatientDefault` BOOLEAN DEFAULT FALSE,
-            ADD INDEX `idx_privilege_defaults` (`isPracticeManagerDefault`, `isReceptionistDefault`, `isDietitianDefault`, `isPatientDefault`)
-        ");
+        try {
+            $this->log("Starting migration 005: Add Default Privilege Fields");
+            
+            // Add default privilege fields
+            $this->log("Adding default privilege fields");
+            $db->exec("
+                INSERT INTO `Privileges` (`name`, `description`) VALUES
+                ('make-bookings', 'Ability to create and manage bookings'),
+                ('view-practice-bookings', 'Ability to view practice bookings'),
+                ('view-practice-invoices', 'Ability to view practice invoices')
+            ");
 
-        // Update existing privileges with default values
-        $db->exec("
-            UPDATE `Privileges` SET
-                `isPracticeManagerDefault` = TRUE,
-                `isReceptionistDefault` = TRUE,
-                `isDietitianDefault` = TRUE,
-                `isPatientDefault` = FALSE
-            WHERE `name` = 'view-practice-bookings'
-        ");
+            // Record migration
+            $this->log("Recording migration in SchemaVersion");
+            $db->exec("
+                INSERT INTO `SchemaVersion` (`version`, `description`) 
+                VALUES ('005', 'Added default privilege fields')
+            ");
 
-        $db->exec("
-            UPDATE `Privileges` SET
-                `isPracticeManagerDefault` = TRUE,
-                `isReceptionistDefault` = TRUE,
-                `isDietitianDefault` = TRUE,
-                `isPatientDefault` = FALSE
-            WHERE `name` = 'view-practice-invoices'
-        ");
+            $this->log("Migration 005 completed successfully");
 
-        $db->exec("
-            UPDATE `Privileges` SET
-                `isPracticeManagerDefault` = TRUE,
-                `isReceptionistDefault` = TRUE,
-                `isDietitianDefault` = TRUE,
-                `isPatientDefault` = FALSE
-            WHERE `name` = 'make-bookings'
-        ");
+        } catch (\Exception $e) {
+            $this->log("Migration failed at: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
+        }
     }
 
     public function down($db) {
-        // Remove default privilege fields from Privileges table
-        $db->exec("
-            ALTER TABLE `Privileges`
-            DROP INDEX `idx_privilege_defaults`,
-            DROP COLUMN `isPracticeManagerDefault`,
-            DROP COLUMN `isReceptionistDefault`,
-            DROP COLUMN `isDietitianDefault`,
-            DROP COLUMN `isPatientDefault`
-        ");
+        try {
+            $this->log("Starting rollback of migration 005: Add Default Privilege Fields");
+            
+            // Remove default privilege fields
+            $this->log("Removing default privilege fields");
+            $db->exec("
+                DELETE FROM `Privileges` 
+                WHERE `name` IN ('make-bookings', 'view-practice-bookings', 'view-practice-invoices')
+            ");
+
+            $this->log("Rollback of migration 005 completed successfully");
+
+        } catch (\Exception $e) {
+            $this->log("Rollback failed at: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
+        }
     }
 } 
