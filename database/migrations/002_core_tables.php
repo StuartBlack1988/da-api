@@ -434,33 +434,27 @@ class CoreTables002 {
 
             $this->log("Creating audit triggers for all tables");
             
-            // List of tables to create triggers for, in batches
-            $tableBatches = [
-                // Batch 1: Core user tables
-                ['User', 'UserStatus', 'Role'],
-                // Batch 2: Authentication tables
-                ['Token', 'ApiAuth'],
-                // Batch 3: Practice tables
-                ['Practice', 'PracticeUser'],
-                // Batch 4: Detail tables
-                ['ReceptionistDetails', 'PracticeManagerDetails', 'DietitianDetails', 'PatientDetails'],
-                // Batch 5: Privilege tables
-                ['Privileges', 'UserPrivileges', 'PrivilegeProfile'],
-                // Batch 6: System tables
-                ['SchemaVersion']
+            // List of tables to create triggers for
+            $tables = [
+                'Practice',
+                'ReceptionistDetails',
+                'PracticeManagerDetails',
+                'DietitianDetails',
+                'PatientDetails',
+                'Privileges',
+                'UserPrivileges',
+                'PrivilegeProfile',
+                'PracticeUser'
             ];
 
-            // Create triggers for each batch
-            foreach ($tableBatches as $batchIndex => $batch) {
-                $this->log("Processing batch " . ($batchIndex + 1));
-                foreach ($batch as $table) {
-                    try {
-                        $this->createAuditTrigger($db, $table);
-                        $this->log("Created triggers for {$table}");
-                    } catch (\Exception $e) {
-                        $this->log("Failed to create triggers for {$table}: " . $e->getMessage());
-                        continue;
-                    }
+            // Create triggers for each table
+            foreach ($tables as $table) {
+                try {
+                    $this->createAuditTrigger($db, $table);
+                    $this->log("Created triggers for {$table}");
+                } catch (\Exception $e) {
+                    $this->log("Failed to create triggers for {$table}: " . $e->getMessage());
+                    continue;
                 }
             }
 
