@@ -303,6 +303,12 @@ class CoreTables002 {
             // Create audit triggers for all tables
             $this->log("Creating audit triggers");
             $tables = [
+                'SchemaVersion',
+                'Role',
+                'UserStatus',
+                'User',
+                'Token',
+                'ApiAuth',
                 'Practice', 
                 'ReceptionistDetails',
                 'PracticeManagerDetails',
