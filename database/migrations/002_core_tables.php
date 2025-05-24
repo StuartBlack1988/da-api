@@ -422,6 +422,12 @@ class CoreTables002 {
             
             // List of tables to create triggers for
             $tables = [
+                'SchemaVersion',
+                'Role',
+                'UserStatus',
+                'User',
+                'Token',
+                'ApiAuth',
                 'Practice',
                 'ReceptionistDetails',
                 'PracticeManagerDetails',
