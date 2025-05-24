@@ -6,6 +6,7 @@ use PDO;
 
 class CoreTables002 {
     private $logCallback;
+    private $startTime;
 
     public function setLogCallback($callback) {
         $this->logCallback = $callback;
@@ -13,13 +14,124 @@ class CoreTables002 {
 
     private function log($message) {
         if ($this->logCallback) {
-            call_user_func($this->logCallback, $message);
+            $elapsed = microtime(true) - $this->startTime;
+            call_user_func($this->logCallback, sprintf("[%.2fs] %s", $elapsed, $message));
         }
+    }
+
+    private function createAuditTrigger($db, $tableName) {
+        $this->log("Creating audit triggers for {$tableName}");
+        
+        // Drop existing triggers
+        $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_insert_audit");
+        $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_update_audit");
+        $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_delete_audit");
+
+        // Get table columns
+        $stmt = $db->query("SHOW COLUMNS FROM `{$tableName}`");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Build JSON object pairs
+        $jsonPairs = [];
+        foreach ($columns as $column) {
+            $jsonPairs[] = "'{$column}', NEW.{$column}";
+        }
+        $jsonObject = implode(",\n        ", $jsonPairs);
+
+        // Create INSERT trigger
+        $db->exec("
+            CREATE TRIGGER trg_{$tableName}_insert_audit
+            AFTER INSERT ON `{$tableName}`
+            FOR EACH ROW
+            INSERT INTO `AuditLog` (
+                userId,
+                action,
+                entityType,
+                entityId,
+                newValues,
+                ipAddress,
+                userAgent
+            ) VALUES (
+                @current_user_id,
+                'INSERT',
+                '{$tableName}',
+                NEW.{$tableName}Id,
+                JSON_OBJECT(
+                    {$jsonObject}
+                ),
+                @current_ip_address,
+                @current_user_agent
+            )
+        ");
+
+        // Create UPDATE trigger
+        $db->exec("
+            CREATE TRIGGER trg_{$tableName}_update_audit
+            AFTER UPDATE ON `{$tableName}`
+            FOR EACH ROW
+            INSERT INTO `AuditLog` (
+                userId,
+                action,
+                entityType,
+                entityId,
+                oldValues,
+                newValues,
+                ipAddress,
+                userAgent
+            ) VALUES (
+                @current_user_id,
+                'UPDATE',
+                '{$tableName}',
+                NEW.{$tableName}Id,
+                JSON_OBJECT(
+                    {$jsonObject}
+                ),
+                JSON_OBJECT(
+                    {$jsonObject}
+                ),
+                @current_ip_address,
+                @current_user_agent
+            )
+        ");
+
+        // Create DELETE trigger
+        $db->exec("
+            CREATE TRIGGER trg_{$tableName}_delete_audit
+            BEFORE DELETE ON `{$tableName}`
+            FOR EACH ROW
+            INSERT INTO `AuditLog` (
+                userId,
+                action,
+                entityType,
+                entityId,
+                oldValues,
+                ipAddress,
+                userAgent
+            ) VALUES (
+                @current_user_id,
+                'DELETE',
+                '{$tableName}',
+                OLD.{$tableName}Id,
+                JSON_OBJECT(
+                    {$jsonObject}
+                ),
+                @current_ip_address,
+                @current_user_agent
+            )
+        ");
+
+        $this->log("Audit triggers created for {$tableName}");
     }
 
     public function up($db) {
         try {
+            $this->startTime = microtime(true);
             $this->log("Starting migration 002: Core Tables");
+
+            // Set timeout for this session
+            $this->log("Setting session timeout to 30 seconds");
+            $db->exec("SET SESSION wait_timeout = 30");
+            $db->exec("SET SESSION interactive_timeout = 30");
 
             // Start transaction
             $this->log("Starting transaction");
@@ -71,6 +183,7 @@ class CoreTables002 {
                     INDEX `idx_practice_verified` (`isVerified`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("Practice table created");
 
             // ======================
             // Detail Tables
@@ -94,6 +207,7 @@ class CoreTables002 {
                     INDEX `idx_receptionist_invoices` (`featureInvoiceTemplates`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("ReceptionistDetails table created");
 
             // PracticeManagerDetails table
             $this->log("Creating PracticeManagerDetails table");
@@ -113,6 +227,7 @@ class CoreTables002 {
                     INDEX `idx_practicemanager_invoices` (`featureInvoiceTemplates`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("PracticeManagerDetails table created");
 
             // DietitianDetails table
             $this->log("Creating DietitianDetails table");
@@ -134,6 +249,7 @@ class CoreTables002 {
                     INDEX `idx_dietitian_invoices` (`featureInvoiceTemplates`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("DietitianDetails table created");
 
             // PatientDetails table
             $this->log("Creating PatientDetails table");
@@ -149,6 +265,7 @@ class CoreTables002 {
                     INDEX `idx_patient_dependant` (`dependantCode`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("PatientDetails table created");
 
             // ======================
             // Privilege Tables
@@ -165,6 +282,7 @@ class CoreTables002 {
                     INDEX `idx_privilege_name` (`name`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("Privileges table created");
 
             // UserPrivileges table
             $this->log("Creating UserPrivileges table");
@@ -181,6 +299,7 @@ class CoreTables002 {
                     INDEX `idx_userprivilege_privilege` (`privilegeId`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("UserPrivileges table created");
 
             // PrivilegeProfile table
             $this->log("Creating PrivilegeProfile table");
@@ -193,6 +312,7 @@ class CoreTables002 {
                     INDEX `idx_privilegeprofile_name` (`name`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("PrivilegeProfile table created");
 
             // ======================
             // Practice User Table
@@ -228,6 +348,7 @@ class CoreTables002 {
                     INDEX `idx_practiceuser_status` (`status`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("PracticeUser table created");
 
             // ======================
             // Audit and API Trace Tables
@@ -254,6 +375,7 @@ class CoreTables002 {
                     INDEX `idx_auditlog_created` (`createdDate`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("AuditLog table created");
 
             // ApiTrace table
             $this->log("Creating ApiTrace table");
@@ -278,6 +400,31 @@ class CoreTables002 {
                     INDEX `idx_apitrace_created` (`createdDate`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            $this->log("ApiTrace table created");
+
+            // ======================
+            // Create Audit Triggers
+            // ======================
+
+            $this->log("Creating audit triggers for all tables");
+            
+            // List of tables to create triggers for
+            $tables = [
+                'Practice',
+                'ReceptionistDetails',
+                'PracticeManagerDetails',
+                'DietitianDetails',
+                'PatientDetails',
+                'Privileges',
+                'UserPrivileges',
+                'PrivilegeProfile',
+                'PracticeUser'
+            ];
+
+            // Create triggers for each table
+            foreach ($tables as $table) {
+                $this->createAuditTrigger($db, $table);
+            }
 
             // ======================
             // Default Data
@@ -290,6 +437,7 @@ class CoreTables002 {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute(['Default Practice', 'practice@example.com', '+27123456789', '123 Main St', 'Suite 100', 'Floor 1', 'CBD', 'Cape Town', 'South Africa', '8001']);
+            $this->log("Default practice created");
 
             // ======================
             // Configuration
@@ -299,40 +447,7 @@ class CoreTables002 {
             $this->log("Setting timezone to South Africa (UTC+2)");
             $stmt = $db->prepare("SET time_zone = ?");
             $stmt->execute(['+02:00']);
-
-            // Create audit triggers for all tables
-            $this->log("Creating audit triggers");
-            $tables = [
-                'SchemaVersion',
-                'Role',
-                'UserStatus',
-                'User',
-                'Token',
-                'ApiAuth',
-                'Practice', 
-                'ReceptionistDetails',
-                'PracticeManagerDetails',
-                'DietitianDetails',
-                'PatientDetails',
-                'Privileges',
-                'UserPrivileges',
-                'PrivilegeProfile',
-                'PracticeUser'
-            ];
-
-            // Exclude audit tables from getting triggers
-            $tables = array_diff($tables, ['AuditLog', 'ApiTrace']);
-
-            // Verify tables exist before creating triggers
-            foreach ($tables as $table) {
-                $stmt = $db->query("SHOW TABLES LIKE '{$table}'");
-                if ($stmt->rowCount() === 0) {
-                    $this->log("WARNING: Table {$table} does not exist, skipping trigger creation");
-                    continue;
-                }
-                $this->log("Creating triggers for table: {$table}");
-                $this->createAuditTrigger($db, $table);
-            }
+            $this->log("Timezone set");
 
             // Commit transaction
             $this->log("Committing transaction");
@@ -347,131 +462,15 @@ class CoreTables002 {
         }
     }
 
-    private function createAuditTrigger($db, $tableName) {
-        $this->log("Creating audit triggers for table: {$tableName}");
-
-        try {
-            // Drop existing triggers first
-            $this->log("Dropping existing triggers for {$tableName}");
-            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_insert_audit");
-            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_update_audit");
-            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_delete_audit");
-
-            // Get the primary key column name
-            $stmt = $db->query("SHOW KEYS FROM `{$tableName}` WHERE Key_name = 'PRIMARY'");
-            $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC)['Column_name'];
-
-            // Build JSON_OBJECT pairs for all columns
-            $jsonNew = $this->getColumnJsonPairs($db, $tableName, 'NEW');
-            $jsonOld = $this->getColumnJsonPairs($db, $tableName, 'OLD');
-
-            // INSERT trigger
-            $this->log("Creating INSERT trigger for {$tableName}");
-            $db->exec("
-                CREATE TRIGGER trg_{$tableName}_insert_audit
-                AFTER INSERT ON `{$tableName}`
-                FOR EACH ROW
-                INSERT INTO `AuditLog` (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                ) VALUES (
-                    @current_user_id,
-                    'INSERT',
-                    '{$tableName}',
-                    NEW.{$primaryKey},
-                    JSON_OBJECT(
-                        {$jsonNew}
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                )
-            ");
-
-            // UPDATE trigger
-            $this->log("Creating UPDATE trigger for {$tableName}");
-            $db->exec("
-                CREATE TRIGGER trg_{$tableName}_update_audit
-                AFTER UPDATE ON `{$tableName}`
-                FOR EACH ROW
-                INSERT INTO `AuditLog` (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                ) VALUES (
-                    @current_user_id,
-                    'UPDATE',
-                    '{$tableName}',
-                    NEW.{$primaryKey},
-                    JSON_OBJECT(
-                        {$jsonOld}
-                    ),
-                    JSON_OBJECT(
-                        {$jsonNew}
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                )
-            ");
-
-            // DELETE trigger
-            $this->log("Creating DELETE trigger for {$tableName}");
-            $db->exec("
-                CREATE TRIGGER trg_{$tableName}_delete_audit
-                BEFORE DELETE ON `{$tableName}`
-                FOR EACH ROW
-                INSERT INTO `AuditLog` (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    ipAddress,
-                    userAgent
-                ) VALUES (
-                    @current_user_id,
-                    'DELETE',
-                    '{$tableName}',
-                    OLD.{$primaryKey},
-                    JSON_OBJECT(
-                        {$jsonOld}
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                )
-            ");
-
-            $this->log("Successfully created all triggers for {$tableName}");
-        } catch (\Exception $e) {
-            $this->log("ERROR creating triggers for {$tableName}: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    private function getColumnJsonPairs($db, $tableName, $prefix) {
-        $stmt = $db->query("SHOW COLUMNS FROM {$tableName}");
-        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        
-        $pairs = [];
-        foreach ($columns as $column) {
-            $pairs[] = "'{$column}', {$prefix}.{$column}";
-        }
-        
-        return implode(",\n                        ", $pairs);
-    }
-
     public function down($db) {
         try {
+            $this->startTime = microtime(true);
             $this->log("Starting rollback of migration 002: Core Tables");
+
+            // Set timeout for this session
+            $this->log("Setting session timeout to 30 seconds");
+            $db->exec("SET SESSION wait_timeout = 30");
+            $db->exec("SET SESSION interactive_timeout = 30");
 
             // Drop tables in reverse order of dependencies
             $tables = [
@@ -484,6 +483,7 @@ class CoreTables002 {
             foreach ($tables as $table) {
                 $this->log("Dropping table: {$table}");
                 $db->exec("DROP TABLE IF EXISTS `{$table}`");
+                $this->log("Table {$table} dropped");
             }
 
             $this->log("Rollback of migration 002 completed successfully");
