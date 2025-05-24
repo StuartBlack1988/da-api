@@ -321,14 +321,6 @@ class CoreTables002 {
                 $this->createAuditTrigger($db, $table);
             }
 
-            // Record migration
-            $this->log("Recording migration in SchemaVersion");
-            $stmt = $db->prepare("
-                INSERT INTO SchemaVersion (version, description) 
-                VALUES (?, ?)
-            ");
-            $stmt->execute(['002', 'Core tables setup with Practice, PracticeUser, and related tables']);
-
             // Commit transaction
             $this->log("Committing transaction");
             $db->exec("COMMIT");
