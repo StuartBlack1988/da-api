@@ -436,6 +436,11 @@ class CoreTables002 {
             
             // List of tables to create triggers for
             $tables = [
+                // Core user tables
+                'User',
+                'UserStatus',
+                'Role',
+                // Practice and related tables
                 'Practice',
                 'ReceptionistDetails',
                 'PracticeManagerDetails',
