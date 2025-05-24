@@ -300,6 +300,27 @@ class CoreTables002 {
             $stmt = $db->prepare("SET time_zone = ?");
             $stmt->execute(['+02:00']);
 
+            // Create audit triggers for all tables
+            $this->log("Creating audit triggers");
+            $tables = [
+                'Practice', 
+                'ReceptionistDetails',
+                'PracticeManagerDetails',
+                'DietitianDetails',
+                'PatientDetails',
+                'Privileges',
+                'UserPrivileges',
+                'PrivilegeProfile',
+                'PracticeUser'
+            ];
+
+            // Exclude audit tables from getting triggers
+            $tables = array_diff($tables, ['AuditLog', 'ApiTrace']);
+
+            foreach ($tables as $table) {
+                $this->createAuditTrigger($db, $table);
+            }
+
             // Record migration
             $this->log("Recording migration in SchemaVersion");
             $stmt = $db->prepare("
@@ -319,6 +340,117 @@ class CoreTables002 {
             $db->exec("ROLLBACK");
             throw $e;
         }
+    }
+
+    private function createAuditTrigger($db, $tableName) {
+        $this->log("Creating audit triggers for table: {$tableName}");
+
+        // Get the primary key column name
+        $stmt = $db->query("SHOW KEYS FROM {$tableName} WHERE Key_name = 'PRIMARY'");
+        $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC)['Column_name'];
+
+        // Create INSERT trigger
+        $db->exec("
+            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_insert_audit
+            AFTER INSERT ON {$tableName}
+            FOR EACH ROW
+            BEGIN
+                INSERT INTO AuditLog (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    newValues,
+                    ipAddress,
+                    userAgent
+                )
+                VALUES (
+                    @current_user_id,
+                    'INSERT',
+                    '{$tableName}',
+                    NEW.{$primaryKey},
+                    JSON_OBJECT(
+                        " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                );
+            END
+        ");
+
+        // Create UPDATE trigger
+        $db->exec("
+            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_update_audit
+            AFTER UPDATE ON {$tableName}
+            FOR EACH ROW
+            BEGIN
+                INSERT INTO AuditLog (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    oldValues,
+                    newValues,
+                    ipAddress,
+                    userAgent
+                )
+                VALUES (
+                    @current_user_id,
+                    'UPDATE',
+                    '{$tableName}',
+                    NEW.{$primaryKey},
+                    JSON_OBJECT(
+                        " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
+                    ),
+                    JSON_OBJECT(
+                        " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                );
+            END
+        ");
+
+        // Create DELETE trigger
+        $db->exec("
+            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_delete_audit
+            BEFORE DELETE ON {$tableName}
+            FOR EACH ROW
+            BEGIN
+                INSERT INTO AuditLog (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    oldValues,
+                    ipAddress,
+                    userAgent
+                )
+                VALUES (
+                    @current_user_id,
+                    'DELETE',
+                    '{$tableName}',
+                    OLD.{$primaryKey},
+                    JSON_OBJECT(
+                        " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                );
+            END
+        ");
+    }
+
+    private function getColumnJsonPairs($db, $tableName, $prefix) {
+        $stmt = $db->query("SHOW COLUMNS FROM {$tableName}");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        $pairs = [];
+        foreach ($columns as $column) {
+            $pairs[] = "'{$column}', {$prefix}.{$column}";
+        }
+        
+        return implode(",\n                        ", $pairs);
     }
 
     public function down($db) {
