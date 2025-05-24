@@ -323,16 +323,14 @@ class CoreTables002 {
             // Exclude audit tables from getting triggers
             $tables = array_diff($tables, ['AuditLog', 'ApiTrace']);
 
-            // Drop existing triggers first to ensure clean state
+            // Verify tables exist before creating triggers
             foreach ($tables as $table) {
-                $this->log("Dropping existing triggers for table: {$table}");
-                $db->exec("DROP TRIGGER IF EXISTS trg_{$table}_insert_audit");
-                $db->exec("DROP TRIGGER IF EXISTS trg_{$table}_update_audit");
-                $db->exec("DROP TRIGGER IF EXISTS trg_{$table}_delete_audit");
-            }
-
-            // Create new triggers
-            foreach ($tables as $table) {
+                $stmt = $db->query("SHOW TABLES LIKE '{$table}'");
+                if ($stmt->rowCount() === 0) {
+                    $this->log("WARNING: Table {$table} does not exist, skipping trigger creation");
+                    continue;
+                }
+                $this->log("Creating triggers for table: {$table}");
                 $this->createAuditTrigger($db, $table);
             }
 
@@ -353,6 +351,12 @@ class CoreTables002 {
         $this->log("Creating audit triggers for table: {$tableName}");
 
         try {
+            // Drop existing triggers first
+            $this->log("Dropping existing triggers for {$tableName}");
+            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_insert_audit");
+            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_update_audit");
+            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_delete_audit");
+
             // Get the primary key column name
             $stmt = $db->query("SHOW KEYS FROM `{$tableName}` WHERE Key_name = 'PRIMARY'");
             $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC)['Column_name'];
