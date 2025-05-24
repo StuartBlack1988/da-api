@@ -30,6 +30,11 @@ class CoreTables002 {
         // Get table columns
         $stmt = $db->query("SHOW COLUMNS FROM `{$tableName}`");
         $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Get primary key column name
+        $stmt = $db->query("SHOW KEYS FROM `{$tableName}` WHERE Key_name = 'PRIMARY'");
+        $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC);
+        $idColumn = $primaryKey['Column_name'];
         
         // Build JSON object pairs for NEW
         $newJsonPairs = [];
@@ -62,7 +67,7 @@ class CoreTables002 {
                 @current_user_id,
                 'INSERT',
                 '{$tableName}',
-                NEW.{$tableName}Id,
+                NEW.{$idColumn},
                 JSON_OBJECT(
                     {$newJsonObject}
                 ),
@@ -89,7 +94,7 @@ class CoreTables002 {
                 @current_user_id,
                 'UPDATE',
                 '{$tableName}',
-                NEW.{$tableName}Id,
+                NEW.{$idColumn},
                 JSON_OBJECT(
                     {$oldJsonObject}
                 ),
@@ -118,7 +123,7 @@ class CoreTables002 {
                 @current_user_id,
                 'DELETE',
                 '{$tableName}',
-                OLD.{$tableName}Id,
+                OLD.{$idColumn},
                 JSON_OBJECT(
                     {$oldJsonObject}
                 ),
