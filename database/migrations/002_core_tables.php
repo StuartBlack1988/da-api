@@ -31,12 +31,19 @@ class CoreTables002 {
         $stmt = $db->query("SHOW COLUMNS FROM `{$tableName}`");
         $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
-        // Build JSON object pairs
-        $jsonPairs = [];
+        // Build JSON object pairs for NEW
+        $newJsonPairs = [];
         foreach ($columns as $column) {
-            $jsonPairs[] = "'{$column}', NEW.{$column}";
+            $newJsonPairs[] = "'{$column}', NEW.{$column}";
         }
-        $jsonObject = implode(",\n        ", $jsonPairs);
+        $newJsonObject = implode(",\n        ", $newJsonPairs);
+
+        // Build JSON object pairs for OLD
+        $oldJsonPairs = [];
+        foreach ($columns as $column) {
+            $oldJsonPairs[] = "'{$column}', OLD.{$column}";
+        }
+        $oldJsonObject = implode(",\n        ", $oldJsonPairs);
 
         // Create INSERT trigger
         $db->exec("
@@ -57,7 +64,7 @@ class CoreTables002 {
                 '{$tableName}',
                 NEW.{$tableName}Id,
                 JSON_OBJECT(
-                    {$jsonObject}
+                    {$newJsonObject}
                 ),
                 @current_ip_address,
                 @current_user_agent
@@ -84,10 +91,10 @@ class CoreTables002 {
                 '{$tableName}',
                 NEW.{$tableName}Id,
                 JSON_OBJECT(
-                    {$jsonObject}
+                    {$oldJsonObject}
                 ),
                 JSON_OBJECT(
-                    {$jsonObject}
+                    {$newJsonObject}
                 ),
                 @current_ip_address,
                 @current_user_agent
@@ -113,7 +120,7 @@ class CoreTables002 {
                 '{$tableName}',
                 OLD.{$tableName}Id,
                 JSON_OBJECT(
-                    {$jsonObject}
+                    {$oldJsonObject}
                 ),
                 @current_ip_address,
                 @current_user_agent
