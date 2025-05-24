@@ -323,6 +323,15 @@ class CoreTables002 {
             // Exclude audit tables from getting triggers
             $tables = array_diff($tables, ['AuditLog', 'ApiTrace']);
 
+            // Drop existing triggers first to ensure clean state
+            foreach ($tables as $table) {
+                $this->log("Dropping existing triggers for table: {$table}");
+                $db->exec("DROP TRIGGER IF EXISTS trg_{$table}_insert_audit");
+                $db->exec("DROP TRIGGER IF EXISTS trg_{$table}_update_audit");
+                $db->exec("DROP TRIGGER IF EXISTS trg_{$table}_delete_audit");
+            }
+
+            // Create new triggers
             foreach ($tables as $table) {
                 $this->createAuditTrigger($db, $table);
             }
@@ -343,100 +352,116 @@ class CoreTables002 {
     private function createAuditTrigger($db, $tableName) {
         $this->log("Creating audit triggers for table: {$tableName}");
 
-        // Get the primary key column name
-        $stmt = $db->query("SHOW KEYS FROM {$tableName} WHERE Key_name = 'PRIMARY'");
-        $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC)['Column_name'];
+        try {
+            // Get the primary key column name
+            $stmt = $db->query("SHOW KEYS FROM {$tableName} WHERE Key_name = 'PRIMARY'");
+            $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC)['Column_name'];
 
-        // Create INSERT trigger
-        $db->exec("
-            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_insert_audit
-            AFTER INSERT ON {$tableName}
-            FOR EACH ROW
-            BEGIN
-                INSERT INTO AuditLog (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                )
-                VALUES (
-                    @current_user_id,
-                    'INSERT',
-                    '{$tableName}',
-                    NEW.{$primaryKey},
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                );
-            END
-        ");
+            // Create INSERT trigger
+            $this->log("Creating INSERT trigger for {$tableName}");
+            $db->exec("
+                DELIMITER //
+                CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_insert_audit
+                AFTER INSERT ON `{$tableName}`
+                FOR EACH ROW
+                BEGIN
+                    INSERT INTO `AuditLog` (
+                        userId,
+                        action,
+                        entityType,
+                        entityId,
+                        newValues,
+                        ipAddress,
+                        userAgent
+                    )
+                    VALUES (
+                        @current_user_id,
+                        'INSERT',
+                        '{$tableName}',
+                        NEW.{$primaryKey},
+                        JSON_OBJECT(
+                            " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
+                        ),
+                        @current_ip_address,
+                        @current_user_agent
+                    );
+                END //
+                DELIMITER ;
+            ");
 
-        // Create UPDATE trigger
-        $db->exec("
-            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_update_audit
-            AFTER UPDATE ON {$tableName}
-            FOR EACH ROW
-            BEGIN
-                INSERT INTO AuditLog (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                )
-                VALUES (
-                    @current_user_id,
-                    'UPDATE',
-                    '{$tableName}',
-                    NEW.{$primaryKey},
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
-                    ),
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                );
-            END
-        ");
+            // Create UPDATE trigger
+            $this->log("Creating UPDATE trigger for {$tableName}");
+            $db->exec("
+                DELIMITER //
+                CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_update_audit
+                AFTER UPDATE ON `{$tableName}`
+                FOR EACH ROW
+                BEGIN
+                    INSERT INTO `AuditLog` (
+                        userId,
+                        action,
+                        entityType,
+                        entityId,
+                        oldValues,
+                        newValues,
+                        ipAddress,
+                        userAgent
+                    )
+                    VALUES (
+                        @current_user_id,
+                        'UPDATE',
+                        '{$tableName}',
+                        NEW.{$primaryKey},
+                        JSON_OBJECT(
+                            " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
+                        ),
+                        JSON_OBJECT(
+                            " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
+                        ),
+                        @current_ip_address,
+                        @current_user_agent
+                    );
+                END //
+                DELIMITER ;
+            ");
 
-        // Create DELETE trigger
-        $db->exec("
-            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_delete_audit
-            BEFORE DELETE ON {$tableName}
-            FOR EACH ROW
-            BEGIN
-                INSERT INTO AuditLog (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    ipAddress,
-                    userAgent
-                )
-                VALUES (
-                    @current_user_id,
-                    'DELETE',
-                    '{$tableName}',
-                    OLD.{$primaryKey},
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                );
-            END
-        ");
+            // Create DELETE trigger
+            $this->log("Creating DELETE trigger for {$tableName}");
+            $db->exec("
+                DELIMITER //
+                CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_delete_audit
+                BEFORE DELETE ON `{$tableName}`
+                FOR EACH ROW
+                BEGIN
+                    INSERT INTO `AuditLog` (
+                        userId,
+                        action,
+                        entityType,
+                        entityId,
+                        oldValues,
+                        ipAddress,
+                        userAgent
+                    )
+                    VALUES (
+                        @current_user_id,
+                        'DELETE',
+                        '{$tableName}',
+                        OLD.{$primaryKey},
+                        JSON_OBJECT(
+                            " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
+                        ),
+                        @current_ip_address,
+                        @current_user_agent
+                    );
+                END //
+                DELIMITER ;
+            ");
+
+            $this->log("Successfully created all triggers for {$tableName}");
+        } catch (\Exception $e) {
+            $this->log("ERROR creating triggers for {$tableName}: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     private function getColumnJsonPairs($db, $tableName, $prefix) {
