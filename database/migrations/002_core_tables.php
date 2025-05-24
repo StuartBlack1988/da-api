@@ -21,46 +21,227 @@ class CoreTables002 {
         try {
             $this->log("Starting migration 002: Core Tables");
 
-            // Create Practice table
+            // Start transaction
+            $this->log("Starting transaction");
+            $db->exec("START TRANSACTION");
+
+            // ======================
+            // Practice Tables
+            // ======================
+
+            // Practice table
             $this->log("Creating Practice table");
             $db->exec("
                 CREATE TABLE IF NOT EXISTS `Practice` (
                     `practiceId` INT AUTO_INCREMENT PRIMARY KEY,
-                    `name` VARCHAR(100) NOT NULL,
-                    `email` VARCHAR(75) NOT NULL,
-                    `phone` VARCHAR(20),
-                    `address` TEXT,
+                    `practiceName` VARCHAR(100) NOT NULL,
+                    `phoneNumber` VARCHAR(20),
+                    `email` VARCHAR(75),
+                    `addressLine1` VARCHAR(100),
+                    `addressLine2` VARCHAR(100),
+                    `addressLine3` VARCHAR(100),
+                    `addressSuburb` VARCHAR(100),
+                    `addressTown` VARCHAR(100),
+                    `addressCountry` VARCHAR(100),
+                    `addressPostalCode` VARCHAR(20),
+                    `billingLine1` VARCHAR(100),
+                    `billingLine2` VARCHAR(100),
+                    `billingLine3` VARCHAR(100),
+                    `billingSuburb` VARCHAR(100),
+                    `billingTown` VARCHAR(100),
+                    `billingCountry` VARCHAR(100),
+                    `billingPostalCode` VARCHAR(20),
+                    `practiceNumber` VARCHAR(50),
+                    `vatNumber` VARCHAR(50),
+                    `bankAccountNumber` VARCHAR(50),
+                    `bankBranchCode` VARCHAR(20),
+                    `bankName` VARCHAR(100),
+                    `bankAccountHolderName` VARCHAR(100),
+                    `bankAccountType` VARCHAR(50),
+                    `isVerified` BOOLEAN DEFAULT FALSE,
+                    `verificationDate` TIMESTAMP NULL,
+                    `verificationNotes` TEXT,
                     `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX `idx_practice_name` (`name`),
-                    INDEX `idx_practice_email` (`email`)
+                    INDEX `idx_practice_name` (`practiceName`),
+                    INDEX `idx_practice_email` (`email`),
+                    INDEX `idx_practice_number` (`practiceNumber`),
+                    INDEX `idx_practice_vat` (`vatNumber`),
+                    INDEX `idx_practice_postal` (`addressPostalCode`, `billingPostalCode`),
+                    INDEX `idx_practice_verified` (`isVerified`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
 
-            // Create PracticeUser table
+            // ======================
+            // Detail Tables
+            // ======================
+
+            // ReceptionistDetails table
+            $this->log("Creating ReceptionistDetails table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `ReceptionistDetails` (
+                    `receptionistDetailsId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `featurePracticeBilling` BOOLEAN DEFAULT FALSE,
+                    `featurePracticeBookings` BOOLEAN DEFAULT FALSE,
+                    `featureMealPlanTemplates` BOOLEAN DEFAULT FALSE,
+                    `featureInvoiceTemplates` BOOLEAN DEFAULT FALSE,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_receptionist_features` (`featurePracticeBilling`, `featurePracticeBookings`, `featureMealPlanTemplates`, `featureInvoiceTemplates`),
+                    INDEX `idx_receptionist_billing` (`featurePracticeBilling`),
+                    INDEX `idx_receptionist_bookings` (`featurePracticeBookings`),
+                    INDEX `idx_receptionist_mealplans` (`featureMealPlanTemplates`),
+                    INDEX `idx_receptionist_invoices` (`featureInvoiceTemplates`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            // PracticeManagerDetails table
+            $this->log("Creating PracticeManagerDetails table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `PracticeManagerDetails` (
+                    `practiceManagerDetailsId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `featurePracticeBilling` BOOLEAN DEFAULT FALSE,
+                    `featurePracticeBookings` BOOLEAN DEFAULT FALSE,
+                    `featureMealPlanTemplates` BOOLEAN DEFAULT FALSE,
+                    `featureInvoiceTemplates` BOOLEAN DEFAULT FALSE,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_practicemanager_features` (`featurePracticeBilling`, `featurePracticeBookings`, `featureMealPlanTemplates`, `featureInvoiceTemplates`),
+                    INDEX `idx_practicemanager_billing` (`featurePracticeBilling`),
+                    INDEX `idx_practicemanager_bookings` (`featurePracticeBookings`),
+                    INDEX `idx_practicemanager_mealplans` (`featureMealPlanTemplates`),
+                    INDEX `idx_practicemanager_invoices` (`featureInvoiceTemplates`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            // DietitianDetails table
+            $this->log("Creating DietitianDetails table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `DietitianDetails` (
+                    `dietitianDetailsId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `professionalRegistration` VARCHAR(50),
+                    `featurePracticeBilling` BOOLEAN DEFAULT FALSE,
+                    `featurePracticeBookings` BOOLEAN DEFAULT FALSE,
+                    `featureMealPlanTemplates` BOOLEAN DEFAULT FALSE,
+                    `featureInvoiceTemplates` BOOLEAN DEFAULT FALSE,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_dietitian_registration` (`professionalRegistration`),
+                    INDEX `idx_dietitian_features` (`featurePracticeBilling`, `featurePracticeBookings`, `featureMealPlanTemplates`, `featureInvoiceTemplates`),
+                    INDEX `idx_dietitian_billing` (`featurePracticeBilling`),
+                    INDEX `idx_dietitian_bookings` (`featurePracticeBookings`),
+                    INDEX `idx_dietitian_mealplans` (`featureMealPlanTemplates`),
+                    INDEX `idx_dietitian_invoices` (`featureInvoiceTemplates`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            // PatientDetails table
+            $this->log("Creating PatientDetails table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `PatientDetails` (
+                    `patientDetailsId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `medicalAidScheme` VARCHAR(100),
+                    `medicalAidPlan` VARCHAR(100),
+                    `dependantCode` VARCHAR(50),
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_patient_medicalaid` (`medicalAidScheme`, `medicalAidPlan`),
+                    INDEX `idx_patient_dependant` (`dependantCode`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            // ======================
+            // Privilege Tables
+            // ======================
+
+            // Privileges table
+            $this->log("Creating Privileges table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `Privileges` (
+                    `privilegeId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(50) NOT NULL UNIQUE,
+                    `description` TEXT,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_privilege_name` (`name`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            // UserPrivileges table
+            $this->log("Creating UserPrivileges table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `UserPrivileges` (
+                    `userPrivilegeId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `userId` INT NOT NULL,
+                    `privilegeId` INT NOT NULL,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (`userId`) REFERENCES `User`(`userId`) ON DELETE CASCADE,
+                    FOREIGN KEY (`privilegeId`) REFERENCES `Privileges`(`privilegeId`) ON DELETE CASCADE,
+                    UNIQUE KEY `idx_user_privilege` (`userId`, `privilegeId`),
+                    INDEX `idx_userprivilege_user` (`userId`),
+                    INDEX `idx_userprivilege_privilege` (`privilegeId`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            // PrivilegeProfile table
+            $this->log("Creating PrivilegeProfile table");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `PrivilegeProfile` (
+                    `privilegeProfileId` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(50) NOT NULL UNIQUE,
+                    `description` TEXT,
+                    `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_privilegeprofile_name` (`name`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            // ======================
+            // Practice User Table
+            // ======================
+
+            // PracticeUser table
             $this->log("Creating PracticeUser table");
             $db->exec("
                 CREATE TABLE IF NOT EXISTS `PracticeUser` (
                     `practiceUserId` INT AUTO_INCREMENT PRIMARY KEY,
                     `practiceId` INT NOT NULL,
                     `userId` INT NOT NULL,
+                    `roleId` INT NOT NULL,
+                    `receptionistDetailsId` INT NULL,
+                    `practiceManagerDetailsId` INT NULL,
+                    `dietitianDetailsId` INT NULL,
+                    `patientDetailsId` INT NULL,
+                    `status` ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
+                    `statusChangedDate` TIMESTAMP NULL,
                     `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `modifiedDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     FOREIGN KEY (`practiceId`) REFERENCES `Practice`(`practiceId`),
                     FOREIGN KEY (`userId`) REFERENCES `User`(`userId`),
+                    FOREIGN KEY (`roleId`) REFERENCES `Role`(`roleId`),
+                    FOREIGN KEY (`receptionistDetailsId`) REFERENCES `ReceptionistDetails`(`receptionistDetailsId`),
+                    FOREIGN KEY (`practiceManagerDetailsId`) REFERENCES `PracticeManagerDetails`(`practiceManagerDetailsId`),
+                    FOREIGN KEY (`dietitianDetailsId`) REFERENCES `DietitianDetails`(`dietitianDetailsId`),
+                    FOREIGN KEY (`patientDetailsId`) REFERENCES `PatientDetails`(`patientDetailsId`),
                     INDEX `idx_practiceuser_practice` (`practiceId`),
-                    INDEX `idx_practiceuser_user` (`userId`)
+                    INDEX `idx_practiceuser_user` (`userId`),
+                    INDEX `idx_practiceuser_role` (`roleId`),
+                    INDEX `idx_practiceuser_details` (`receptionistDetailsId`, `practiceManagerDetailsId`, `dietitianDetailsId`, `patientDetailsId`),
+                    INDEX `idx_practiceuser_status` (`status`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
 
-            // Create AuditLog table
+            // ======================
+            // Audit and API Trace Tables
+            // ======================
+
+            // AuditLog table
             $this->log("Creating AuditLog table");
             $db->exec("
                 CREATE TABLE IF NOT EXISTS `AuditLog` (
                     `auditLogId` INT AUTO_INCREMENT PRIMARY KEY,
                     `userId` INT,
                     `action` VARCHAR(50) NOT NULL,
-                    `tableName` VARCHAR(100) NOT NULL,
-                    `recordId` INT,
+                    `entityType` VARCHAR(50) NOT NULL,
+                    `entityId` INT,
                     `oldValues` JSON,
                     `newValues` JSON,
                     `ipAddress` VARCHAR(45),
@@ -68,14 +249,13 @@ class CoreTables002 {
                     `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (`userId`) REFERENCES `User`(`userId`),
                     INDEX `idx_auditlog_user` (`userId`),
+                    INDEX `idx_auditlog_entity` (`entityType`, `entityId`),
                     INDEX `idx_auditlog_action` (`action`),
-                    INDEX `idx_auditlog_table` (`tableName`),
-                    INDEX `idx_auditlog_record` (`recordId`),
                     INDEX `idx_auditlog_created` (`createdDate`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
 
-            // Create ApiTrace table
+            // ApiTrace table
             $this->log("Creating ApiTrace table");
             $db->exec("
                 CREATE TABLE IF NOT EXISTS `ApiTrace` (
@@ -86,153 +266,59 @@ class CoreTables002 {
                     `requestBody` JSON,
                     `responseBody` JSON,
                     `statusCode` INT,
+                    `duration` INT,
                     `ipAddress` VARCHAR(45),
                     `userAgent` TEXT,
                     `createdDate` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (`userId`) REFERENCES `User`(`userId`),
                     INDEX `idx_apitrace_user` (`userId`),
-                    INDEX `idx_apitrace_method` (`method`),
                     INDEX `idx_apitrace_endpoint` (`endpoint`),
+                    INDEX `idx_apitrace_method` (`method`),
                     INDEX `idx_apitrace_status` (`statusCode`),
                     INDEX `idx_apitrace_created` (`createdDate`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
 
-            // Create audit triggers for all tables
-            $this->log("Creating audit triggers");
-            $tables = [
-                'Practice', 'PracticeUser', 'AuditLog', 'ApiTrace'
-            ];
+            // ======================
+            // Default Data
+            // ======================
 
-            foreach ($tables as $table) {
-                $this->createAuditTrigger($db, $table);
-            }
+            // Create default practice
+            $this->log("Creating default practice");
+            $stmt = $db->prepare("
+                INSERT INTO Practice (practiceName, email, phoneNumber, addressLine1, addressLine2, addressLine3, addressSuburb, addressTown, addressCountry, addressPostalCode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute(['Default Practice', 'practice@example.com', '+27123456789', '123 Main St', 'Suite 100', 'Floor 1', 'CBD', 'Cape Town', 'South Africa', '8001']);
 
-            // Record the migration
+            // ======================
+            // Configuration
+            // ======================
+
+            // Set timezone to South Africa (UTC+2)
+            $this->log("Setting timezone to South Africa (UTC+2)");
+            $stmt = $db->prepare("SET time_zone = ?");
+            $stmt->execute(['+02:00']);
+
+            // Record migration
             $this->log("Recording migration in SchemaVersion");
             $stmt = $db->prepare("
                 INSERT INTO SchemaVersion (version, description) 
                 VALUES (?, ?)
             ");
-            $stmt->execute(['002', 'Core tables setup with Practice, PracticeUser, and audit tables']);
+            $stmt->execute(['002', 'Core tables setup with Practice, PracticeUser, and related tables']);
+
+            // Commit transaction
+            $this->log("Committing transaction");
+            $db->exec("COMMIT");
 
             $this->log("Migration 002 completed successfully");
         } catch (\Exception $e) {
             $this->log("ERROR: " . $e->getMessage());
             $this->log("Stack trace: " . $e->getTraceAsString());
+            $db->exec("ROLLBACK");
             throw $e;
         }
-    }
-
-    private function createAuditTrigger($db, $tableName) {
-        $this->log("Creating audit triggers for table: {$tableName}");
-
-        // Get the primary key column name
-        $stmt = $db->query("SHOW KEYS FROM {$tableName} WHERE Key_name = 'PRIMARY'");
-        $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC)['Column_name'];
-
-        // Create INSERT trigger
-        $db->exec("
-            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_insert_audit
-            AFTER INSERT ON {$tableName}
-            FOR EACH ROW
-            BEGIN
-                INSERT INTO AuditLog (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                )
-                VALUES (
-                    @current_user_id,
-                    'INSERT',
-                    '{$tableName}',
-                    NEW.{$primaryKey},
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                );
-            END
-        ");
-
-        // Create UPDATE trigger
-        $db->exec("
-            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_update_audit
-            AFTER UPDATE ON {$tableName}
-            FOR EACH ROW
-            BEGIN
-                INSERT INTO AuditLog (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                )
-                VALUES (
-                    @current_user_id,
-                    'UPDATE',
-                    '{$tableName}',
-                    NEW.{$primaryKey},
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
-                    ),
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                );
-            END
-        ");
-
-        // Create DELETE trigger
-        $db->exec("
-            CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_delete_audit
-            BEFORE DELETE ON {$tableName}
-            FOR EACH ROW
-            BEGIN
-                INSERT INTO AuditLog (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    ipAddress,
-                    userAgent
-                )
-                VALUES (
-                    @current_user_id,
-                    'DELETE',
-                    '{$tableName}',
-                    OLD.{$primaryKey},
-                    JSON_OBJECT(
-                        " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                );
-            END
-        ");
-    }
-
-    private function getColumnJsonPairs($db, $tableName, $prefix) {
-        $stmt = $db->query("SHOW COLUMNS FROM {$tableName}");
-        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        
-        $pairs = [];
-        foreach ($columns as $column) {
-            $pairs[] = "'{$column}', {$prefix}.{$column}";
-        }
-        
-        return implode(",\n                        ", $pairs);
     }
 
     public function down($db) {
