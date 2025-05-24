@@ -354,107 +354,96 @@ class CoreTables002 {
 
         try {
             // Get the primary key column name
-            $stmt = $db->query("SHOW KEYS FROM {$tableName} WHERE Key_name = 'PRIMARY'");
+            $stmt = $db->query("SHOW KEYS FROM `{$tableName}` WHERE Key_name = 'PRIMARY'");
             $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC)['Column_name'];
 
-            // Create INSERT trigger
+            // Build JSON_OBJECT pairs for all columns
+            $jsonNew = $this->getColumnJsonPairs($db, $tableName, 'NEW');
+            $jsonOld = $this->getColumnJsonPairs($db, $tableName, 'OLD');
+
+            // INSERT trigger
             $this->log("Creating INSERT trigger for {$tableName}");
             $db->exec("
-                DELIMITER //
-                CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_insert_audit
+                CREATE TRIGGER trg_{$tableName}_insert_audit
                 AFTER INSERT ON `{$tableName}`
                 FOR EACH ROW
-                BEGIN
-                    INSERT INTO `AuditLog` (
-                        userId,
-                        action,
-                        entityType,
-                        entityId,
-                        newValues,
-                        ipAddress,
-                        userAgent
-                    )
-                    VALUES (
-                        @current_user_id,
-                        'INSERT',
-                        '{$tableName}',
-                        NEW.{$primaryKey},
-                        JSON_OBJECT(
-                            " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
-                        ),
-                        @current_ip_address,
-                        @current_user_agent
-                    );
-                END //
-                DELIMITER ;
+                INSERT INTO `AuditLog` (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    newValues,
+                    ipAddress,
+                    userAgent
+                ) VALUES (
+                    @current_user_id,
+                    'INSERT',
+                    '{$tableName}',
+                    NEW.{$primaryKey},
+                    JSON_OBJECT(
+                        {$jsonNew}
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                )
             ");
 
-            // Create UPDATE trigger
+            // UPDATE trigger
             $this->log("Creating UPDATE trigger for {$tableName}");
             $db->exec("
-                DELIMITER //
-                CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_update_audit
+                CREATE TRIGGER trg_{$tableName}_update_audit
                 AFTER UPDATE ON `{$tableName}`
                 FOR EACH ROW
-                BEGIN
-                    INSERT INTO `AuditLog` (
-                        userId,
-                        action,
-                        entityType,
-                        entityId,
-                        oldValues,
-                        newValues,
-                        ipAddress,
-                        userAgent
-                    )
-                    VALUES (
-                        @current_user_id,
-                        'UPDATE',
-                        '{$tableName}',
-                        NEW.{$primaryKey},
-                        JSON_OBJECT(
-                            " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
-                        ),
-                        JSON_OBJECT(
-                            " . $this->getColumnJsonPairs($db, $tableName, 'NEW') . "
-                        ),
-                        @current_ip_address,
-                        @current_user_agent
-                    );
-                END //
-                DELIMITER ;
+                INSERT INTO `AuditLog` (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    oldValues,
+                    newValues,
+                    ipAddress,
+                    userAgent
+                ) VALUES (
+                    @current_user_id,
+                    'UPDATE',
+                    '{$tableName}',
+                    NEW.{$primaryKey},
+                    JSON_OBJECT(
+                        {$jsonOld}
+                    ),
+                    JSON_OBJECT(
+                        {$jsonNew}
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                )
             ");
 
-            // Create DELETE trigger
+            // DELETE trigger
             $this->log("Creating DELETE trigger for {$tableName}");
             $db->exec("
-                DELIMITER //
-                CREATE TRIGGER IF NOT EXISTS trg_{$tableName}_delete_audit
+                CREATE TRIGGER trg_{$tableName}_delete_audit
                 BEFORE DELETE ON `{$tableName}`
                 FOR EACH ROW
-                BEGIN
-                    INSERT INTO `AuditLog` (
-                        userId,
-                        action,
-                        entityType,
-                        entityId,
-                        oldValues,
-                        ipAddress,
-                        userAgent
-                    )
-                    VALUES (
-                        @current_user_id,
-                        'DELETE',
-                        '{$tableName}',
-                        OLD.{$primaryKey},
-                        JSON_OBJECT(
-                            " . $this->getColumnJsonPairs($db, $tableName, 'OLD') . "
-                        ),
-                        @current_ip_address,
-                        @current_user_agent
-                    );
-                END //
-                DELIMITER ;
+                INSERT INTO `AuditLog` (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    oldValues,
+                    ipAddress,
+                    userAgent
+                ) VALUES (
+                    @current_user_id,
+                    'DELETE',
+                    '{$tableName}',
+                    OLD.{$primaryKey},
+                    JSON_OBJECT(
+                        {$jsonOld}
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                )
             ");
 
             $this->log("Successfully created all triggers for {$tableName}");
