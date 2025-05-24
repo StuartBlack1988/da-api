@@ -20,119 +20,133 @@ class CoreTables002 {
     }
 
     private function createAuditTrigger($db, $tableName) {
-        $this->log("Creating audit triggers for {$tableName}");
-        
-        // Drop existing triggers
-        $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_insert_audit");
-        $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_update_audit");
-        $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_delete_audit");
+        try {
+            // Set a timeout for this specific operation
+            $db->exec("SET SESSION wait_timeout = 5");
+            $db->exec("SET SESSION interactive_timeout = 5");
+            
+            // Check if table exists
+            $stmt = $db->query("SHOW TABLES LIKE '{$tableName}'");
+            if ($stmt->rowCount() === 0) {
+                return;
+            }
+            
+            // Drop existing triggers
+            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_insert_audit");
+            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_update_audit");
+            $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_delete_audit");
 
-        // Get table columns
-        $stmt = $db->query("SHOW COLUMNS FROM `{$tableName}`");
-        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            // Get table columns
+            $stmt = $db->query("SHOW COLUMNS FROM `{$tableName}`");
+            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Get primary key column name
-        $stmt = $db->query("SHOW KEYS FROM `{$tableName}` WHERE Key_name = 'PRIMARY'");
-        $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC);
-        $idColumn = $primaryKey['Column_name'];
-        
-        // Build JSON object pairs for NEW
-        $newJsonPairs = [];
-        foreach ($columns as $column) {
-            $newJsonPairs[] = "'{$column}', NEW.{$column}";
+            // Get primary key column name
+            $stmt = $db->query("SHOW KEYS FROM `{$tableName}` WHERE Key_name = 'PRIMARY'");
+            $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$primaryKey) {
+                return;
+            }
+            $idColumn = $primaryKey['Column_name'];
+            
+            // Build JSON object pairs for NEW
+            $newJsonPairs = [];
+            foreach ($columns as $column) {
+                $newJsonPairs[] = "'{$column}', NEW.{$column}";
+            }
+            $newJsonObject = implode(",\n        ", $newJsonPairs);
+
+            // Build JSON object pairs for OLD
+            $oldJsonPairs = [];
+            foreach ($columns as $column) {
+                $oldJsonPairs[] = "'{$column}', OLD.{$column}";
+            }
+            $oldJsonObject = implode(",\n        ", $oldJsonPairs);
+
+            // Create INSERT trigger
+            $db->exec("
+                CREATE TRIGGER trg_{$tableName}_insert_audit
+                AFTER INSERT ON `{$tableName}`
+                FOR EACH ROW
+                INSERT INTO `AuditLog` (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    newValues,
+                    ipAddress,
+                    userAgent
+                ) VALUES (
+                    @current_user_id,
+                    'INSERT',
+                    '{$tableName}',
+                    NEW.{$idColumn},
+                    JSON_OBJECT(
+                        {$newJsonObject}
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                )
+            ");
+
+            // Create UPDATE trigger
+            $db->exec("
+                CREATE TRIGGER trg_{$tableName}_update_audit
+                AFTER UPDATE ON `{$tableName}`
+                FOR EACH ROW
+                INSERT INTO `AuditLog` (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    oldValues,
+                    newValues,
+                    ipAddress,
+                    userAgent
+                ) VALUES (
+                    @current_user_id,
+                    'UPDATE',
+                    '{$tableName}',
+                    NEW.{$idColumn},
+                    JSON_OBJECT(
+                        {$oldJsonObject}
+                    ),
+                    JSON_OBJECT(
+                        {$newJsonObject}
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                )
+            ");
+
+            // Create DELETE trigger
+            $db->exec("
+                CREATE TRIGGER trg_{$tableName}_delete_audit
+                BEFORE DELETE ON `{$tableName}`
+                FOR EACH ROW
+                INSERT INTO `AuditLog` (
+                    userId,
+                    action,
+                    entityType,
+                    entityId,
+                    oldValues,
+                    ipAddress,
+                    userAgent
+                ) VALUES (
+                    @current_user_id,
+                    'DELETE',
+                    '{$tableName}',
+                    OLD.{$idColumn},
+                    JSON_OBJECT(
+                        {$oldJsonObject}
+                    ),
+                    @current_ip_address,
+                    @current_user_agent
+                )
+            ");
+
+        } catch (\Exception $e) {
+            throw $e;
         }
-        $newJsonObject = implode(",\n        ", $newJsonPairs);
-
-        // Build JSON object pairs for OLD
-        $oldJsonPairs = [];
-        foreach ($columns as $column) {
-            $oldJsonPairs[] = "'{$column}', OLD.{$column}";
-        }
-        $oldJsonObject = implode(",\n        ", $oldJsonPairs);
-
-        // Create INSERT trigger
-        $db->exec("
-            CREATE TRIGGER trg_{$tableName}_insert_audit
-            AFTER INSERT ON `{$tableName}`
-            FOR EACH ROW
-            INSERT INTO `AuditLog` (
-                userId,
-                action,
-                entityType,
-                entityId,
-                newValues,
-                ipAddress,
-                userAgent
-            ) VALUES (
-                @current_user_id,
-                'INSERT',
-                '{$tableName}',
-                NEW.{$idColumn},
-                JSON_OBJECT(
-                    {$newJsonObject}
-                ),
-                @current_ip_address,
-                @current_user_agent
-            )
-        ");
-
-        // Create UPDATE trigger
-        $db->exec("
-            CREATE TRIGGER trg_{$tableName}_update_audit
-            AFTER UPDATE ON `{$tableName}`
-            FOR EACH ROW
-            INSERT INTO `AuditLog` (
-                userId,
-                action,
-                entityType,
-                entityId,
-                oldValues,
-                newValues,
-                ipAddress,
-                userAgent
-            ) VALUES (
-                @current_user_id,
-                'UPDATE',
-                '{$tableName}',
-                NEW.{$idColumn},
-                JSON_OBJECT(
-                    {$oldJsonObject}
-                ),
-                JSON_OBJECT(
-                    {$newJsonObject}
-                ),
-                @current_ip_address,
-                @current_user_agent
-            )
-        ");
-
-        // Create DELETE trigger
-        $db->exec("
-            CREATE TRIGGER trg_{$tableName}_delete_audit
-            BEFORE DELETE ON `{$tableName}`
-            FOR EACH ROW
-            INSERT INTO `AuditLog` (
-                userId,
-                action,
-                entityType,
-                entityId,
-                oldValues,
-                ipAddress,
-                userAgent
-            ) VALUES (
-                @current_user_id,
-                'DELETE',
-                '{$tableName}',
-                OLD.{$idColumn},
-                JSON_OBJECT(
-                    {$oldJsonObject}
-                ),
-                @current_ip_address,
-                @current_user_agent
-            )
-        ");
-
-        $this->log("Audit triggers created for {$tableName}");
     }
 
     public function up($db) {
@@ -420,28 +434,34 @@ class CoreTables002 {
 
             $this->log("Creating audit triggers for all tables");
             
-            // List of tables to create triggers for
-            $tables = [
-                'SchemaVersion',
-                'Role',
-                'UserStatus',
-                'User',
-                'Token',
-                'ApiAuth',
-                'Practice',
-                'ReceptionistDetails',
-                'PracticeManagerDetails',
-                'DietitianDetails',
-                'PatientDetails',
-                'Privileges',
-                'UserPrivileges',
-                'PrivilegeProfile',
-                'PracticeUser'
+            // List of tables to create triggers for, in batches
+            $tableBatches = [
+                // Batch 1: Core user tables
+                ['User', 'UserStatus', 'Role'],
+                // Batch 2: Authentication tables
+                ['Token', 'ApiAuth'],
+                // Batch 3: Practice tables
+                ['Practice', 'PracticeUser'],
+                // Batch 4: Detail tables
+                ['ReceptionistDetails', 'PracticeManagerDetails', 'DietitianDetails', 'PatientDetails'],
+                // Batch 5: Privilege tables
+                ['Privileges', 'UserPrivileges', 'PrivilegeProfile'],
+                // Batch 6: System tables
+                ['SchemaVersion']
             ];
 
-            // Create triggers for each table
-            foreach ($tables as $table) {
-                $this->createAuditTrigger($db, $table);
+            // Create triggers for each batch
+            foreach ($tableBatches as $batchIndex => $batch) {
+                $this->log("Processing batch " . ($batchIndex + 1));
+                foreach ($batch as $table) {
+                    try {
+                        $this->createAuditTrigger($db, $table);
+                        $this->log("Created triggers for {$table}");
+                    } catch (\Exception $e) {
+                        $this->log("Failed to create triggers for {$table}: " . $e->getMessage());
+                        continue;
+                    }
+                }
             }
 
             // ======================
