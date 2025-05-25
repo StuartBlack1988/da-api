@@ -41,123 +41,141 @@ class AddApiAuthTriggers003 {
 
             // Create INSERT trigger
             $this->log("Creating INSERT trigger for ApiAuth");
-            $insertTrigger = "
-                CREATE TRIGGER trg_ApiAuth_insert_audit
-                AFTER INSERT ON `ApiAuth`
-                FOR EACH ROW
-                INSERT INTO `AuditLog` (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                ) VALUES (
-                    @current_user_id,
-                    'INSERT',
-                    'ApiAuth',
-                    NEW.apiAuthId,
-                    JSON_OBJECT(
-                        'apiAuthId', NEW.apiAuthId,
-                        'name', NEW.name,
-                        'token', NEW.token,
-                        'description', NEW.description,
-                        'isActive', NEW.isActive,
-                        'lastUsed', NEW.lastUsed,
-                        'createdDate', NEW.createdDate,
-                        'expiryDate', NEW.expiryDate,
-                        'createdBy', NEW.createdBy
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                )";
-            $stmt = $db->prepare($insertTrigger);
-            $stmt->execute();
+            try {
+                $insertTrigger = "
+                    CREATE TRIGGER trg_ApiAuth_insert_audit
+                    AFTER INSERT ON `ApiAuth`
+                    FOR EACH ROW
+                    INSERT INTO `AuditLog` (
+                        userId,
+                        action,
+                        entityType,
+                        entityId,
+                        newValues,
+                        ipAddress,
+                        userAgent
+                    ) VALUES (
+                        @current_user_id,
+                        'INSERT',
+                        'ApiAuth',
+                        NEW.apiAuthId,
+                        JSON_OBJECT(
+                            'apiAuthId', NEW.apiAuthId,
+                            'name', NEW.name,
+                            'token', NEW.token,
+                            'description', NEW.description,
+                            'isActive', NEW.isActive,
+                            'lastUsed', NEW.lastUsed,
+                            'createdDate', NEW.createdDate,
+                            'expiryDate', NEW.expiryDate,
+                            'createdBy', NEW.createdBy
+                        ),
+                        @current_ip_address,
+                        @current_user_agent
+                    )";
+                $stmt = $db->prepare($insertTrigger);
+                $stmt->execute();
+                $this->log("INSERT trigger created successfully");
+            } catch (\Exception $e) {
+                $this->log("ERROR creating INSERT trigger: " . $e->getMessage());
+                throw $e;
+            }
 
             // Create UPDATE trigger
             $this->log("Creating UPDATE trigger for ApiAuth");
-            $updateTrigger = "
-                CREATE TRIGGER trg_ApiAuth_update_audit
-                AFTER UPDATE ON `ApiAuth`
-                FOR EACH ROW
-                INSERT INTO `AuditLog` (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    newValues,
-                    ipAddress,
-                    userAgent
-                ) VALUES (
-                    @current_user_id,
-                    'UPDATE',
-                    'ApiAuth',
-                    NEW.apiAuthId,
-                    JSON_OBJECT(
-                        'apiAuthId', OLD.apiAuthId,
-                        'name', OLD.name,
-                        'token', OLD.token,
-                        'description', OLD.description,
-                        'isActive', OLD.isActive,
-                        'lastUsed', OLD.lastUsed,
-                        'createdDate', OLD.createdDate,
-                        'expiryDate', OLD.expiryDate,
-                        'createdBy', OLD.createdBy
-                    ),
-                    JSON_OBJECT(
-                        'apiAuthId', NEW.apiAuthId,
-                        'name', NEW.name,
-                        'token', NEW.token,
-                        'description', NEW.description,
-                        'isActive', NEW.isActive,
-                        'lastUsed', NEW.lastUsed,
-                        'createdDate', NEW.createdDate,
-                        'expiryDate', NEW.expiryDate,
-                        'createdBy', NEW.createdBy
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                )";
-            $stmt = $db->prepare($updateTrigger);
-            $stmt->execute();
+            try {
+                $updateTrigger = "
+                    CREATE TRIGGER trg_ApiAuth_update_audit
+                    AFTER UPDATE ON `ApiAuth`
+                    FOR EACH ROW
+                    INSERT INTO `AuditLog` (
+                        userId,
+                        action,
+                        entityType,
+                        entityId,
+                        oldValues,
+                        newValues,
+                        ipAddress,
+                        userAgent
+                    ) VALUES (
+                        @current_user_id,
+                        'UPDATE',
+                        'ApiAuth',
+                        NEW.apiAuthId,
+                        JSON_OBJECT(
+                            'apiAuthId', OLD.apiAuthId,
+                            'name', OLD.name,
+                            'token', OLD.token,
+                            'description', OLD.description,
+                            'isActive', OLD.isActive,
+                            'lastUsed', OLD.lastUsed,
+                            'createdDate', OLD.createdDate,
+                            'expiryDate', OLD.expiryDate,
+                            'createdBy', OLD.createdBy
+                        ),
+                        JSON_OBJECT(
+                            'apiAuthId', NEW.apiAuthId,
+                            'name', NEW.name,
+                            'token', NEW.token,
+                            'description', NEW.description,
+                            'isActive', NEW.isActive,
+                            'lastUsed', NEW.lastUsed,
+                            'createdDate', NEW.createdDate,
+                            'expiryDate', NEW.expiryDate,
+                            'createdBy', NEW.createdBy
+                        ),
+                        @current_ip_address,
+                        @current_user_agent
+                    )";
+                $stmt = $db->prepare($updateTrigger);
+                $stmt->execute();
+                $this->log("UPDATE trigger created successfully");
+            } catch (\Exception $e) {
+                $this->log("ERROR creating UPDATE trigger: " . $e->getMessage());
+                throw $e;
+            }
 
             // Create DELETE trigger
             $this->log("Creating DELETE trigger for ApiAuth");
-            $deleteTrigger = "
-                CREATE TRIGGER trg_ApiAuth_delete_audit
-                BEFORE DELETE ON `ApiAuth`
-                FOR EACH ROW
-                INSERT INTO `AuditLog` (
-                    userId,
-                    action,
-                    entityType,
-                    entityId,
-                    oldValues,
-                    ipAddress,
-                    userAgent
-                ) VALUES (
-                    @current_user_id,
-                    'DELETE',
-                    'ApiAuth',
-                    OLD.apiAuthId,
-                    JSON_OBJECT(
-                        'apiAuthId', OLD.apiAuthId,
-                        'name', OLD.name,
-                        'token', OLD.token,
-                        'description', OLD.description,
-                        'isActive', OLD.isActive,
-                        'lastUsed', OLD.lastUsed,
-                        'createdDate', OLD.createdDate,
-                        'expiryDate', OLD.expiryDate,
-                        'createdBy', OLD.createdBy
-                    ),
-                    @current_ip_address,
-                    @current_user_agent
-                )";
-            $stmt = $db->prepare($deleteTrigger);
-            $stmt->execute();
+            try {
+                $deleteTrigger = "
+                    CREATE TRIGGER trg_ApiAuth_delete_audit
+                    BEFORE DELETE ON `ApiAuth`
+                    FOR EACH ROW
+                    INSERT INTO `AuditLog` (
+                        userId,
+                        action,
+                        entityType,
+                        entityId,
+                        oldValues,
+                        ipAddress,
+                        userAgent
+                    ) VALUES (
+                        @current_user_id,
+                        'DELETE',
+                        'ApiAuth',
+                        OLD.apiAuthId,
+                        JSON_OBJECT(
+                            'apiAuthId', OLD.apiAuthId,
+                            'name', OLD.name,
+                            'token', OLD.token,
+                            'description', OLD.description,
+                            'isActive', OLD.isActive,
+                            'lastUsed', OLD.lastUsed,
+                            'createdDate', OLD.createdDate,
+                            'expiryDate', OLD.expiryDate,
+                            'createdBy', OLD.createdBy
+                        ),
+                        @current_ip_address,
+                        @current_user_agent
+                    )";
+                $stmt = $db->prepare($deleteTrigger);
+                $stmt->execute();
+                $this->log("DELETE trigger created successfully");
+            } catch (\Exception $e) {
+                $this->log("ERROR creating DELETE trigger: " . $e->getMessage());
+                throw $e;
+            }
 
             // Commit transaction
             $this->log("Committing transaction");
