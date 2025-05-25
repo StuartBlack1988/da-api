@@ -60,13 +60,14 @@ class AddApiAuthTriggers003 {
                     NEW.apiAuthId,
                     JSON_OBJECT(
                         'apiAuthId', NEW.apiAuthId,
-                        'userId', NEW.userId,
-                        'apiKey', NEW.apiKey,
                         'name', NEW.name,
+                        'token', NEW.token,
+                        'description', NEW.description,
                         'isActive', NEW.isActive,
                         'lastUsed', NEW.lastUsed,
                         'createdDate', NEW.createdDate,
-                        'modifiedDate', NEW.modifiedDate
+                        'expiryDate', NEW.expiryDate,
+                        'createdBy', NEW.createdBy
                     ),
                     @current_ip_address,
                     @current_user_agent
@@ -95,23 +96,25 @@ class AddApiAuthTriggers003 {
                     NEW.apiAuthId,
                     JSON_OBJECT(
                         'apiAuthId', OLD.apiAuthId,
-                        'userId', OLD.userId,
-                        'apiKey', OLD.apiKey,
                         'name', OLD.name,
+                        'token', OLD.token,
+                        'description', OLD.description,
                         'isActive', OLD.isActive,
                         'lastUsed', OLD.lastUsed,
                         'createdDate', OLD.createdDate,
-                        'modifiedDate', OLD.modifiedDate
+                        'expiryDate', OLD.expiryDate,
+                        'createdBy', OLD.createdBy
                     ),
                     JSON_OBJECT(
                         'apiAuthId', NEW.apiAuthId,
-                        'userId', NEW.userId,
-                        'apiKey', NEW.apiKey,
                         'name', NEW.name,
+                        'token', NEW.token,
+                        'description', NEW.description,
                         'isActive', NEW.isActive,
                         'lastUsed', NEW.lastUsed,
                         'createdDate', NEW.createdDate,
-                        'modifiedDate', NEW.modifiedDate
+                        'expiryDate', NEW.expiryDate,
+                        'createdBy', NEW.createdBy
                     ),
                     @current_ip_address,
                     @current_user_agent
@@ -139,13 +142,14 @@ class AddApiAuthTriggers003 {
                     OLD.apiAuthId,
                     JSON_OBJECT(
                         'apiAuthId', OLD.apiAuthId,
-                        'userId', OLD.userId,
-                        'apiKey', OLD.apiKey,
                         'name', OLD.name,
+                        'token', OLD.token,
+                        'description', OLD.description,
                         'isActive', OLD.isActive,
                         'lastUsed', OLD.lastUsed,
                         'createdDate', OLD.createdDate,
-                        'modifiedDate', OLD.modifiedDate
+                        'expiryDate', OLD.expiryDate,
+                        'createdBy', OLD.createdBy
                     ),
                     @current_ip_address,
                     @current_user_agent
