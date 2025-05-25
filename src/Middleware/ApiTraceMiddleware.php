@@ -8,9 +8,11 @@ class ApiTraceMiddleware {
     private $db;
     private $startTime;
     private $logCallback;
+    private $logFile;
 
     public function __construct(PDO $db) {
         $this->db = $db;
+        $this->logFile = __DIR__ . '/../../logs/api_trace.log';
     }
 
     public function setLogCallback($callback) {
@@ -18,9 +20,15 @@ class ApiTraceMiddleware {
     }
 
     private function log($message) {
+        // Log to callback if set
         if ($this->logCallback) {
             call_user_func($this->logCallback, $message);
         }
+        
+        // Also log directly to file
+        $timestamp = date('Y-m-d H:i:s');
+        $logMessage = "[{$timestamp}] {$message}\n";
+        file_put_contents($this->logFile, $logMessage, FILE_APPEND);
     }
 
     public function handle() {

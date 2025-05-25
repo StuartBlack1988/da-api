@@ -118,4 +118,18 @@ $router->get('/system/db-test', function() use ($db) {
             'message' => 'Database connection failed'
         ]);
     }
+});
+
+$router->get('/system/test-trace', function() {
+    error_log("Test trace endpoint called");
+    header('Content-Type: application/json');
+    echo json_encode([
+        'message' => 'Test trace endpoint',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'request' => [
+            'method' => $_SERVER['REQUEST_METHOD'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'headers' => getallheaders()
+        ]
+    ]);
 }); 
