@@ -21,32 +21,42 @@ class CoreTables002 {
 
     private function createAuditTrigger($db, $tableName) {
         try {
+            $this->log("Starting trigger creation for {$tableName}");
+            
             // Set a timeout for this specific operation
             $db->exec("SET SESSION wait_timeout = 5");
             $db->exec("SET SESSION interactive_timeout = 5");
             
             // Check if table exists
+            $this->log("Checking if table {$tableName} exists");
             $stmt = $db->query("SHOW TABLES LIKE '{$tableName}'");
             if ($stmt->rowCount() === 0) {
+                $this->log("Table {$tableName} does not exist, skipping trigger creation");
                 return;
             }
             
             // Drop existing triggers
+            $this->log("Dropping existing triggers for {$tableName}");
             $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_insert_audit");
             $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_update_audit");
             $db->exec("DROP TRIGGER IF EXISTS trg_{$tableName}_delete_audit");
 
             // Get table columns
+            $this->log("Getting columns for {$tableName}");
             $stmt = $db->query("SHOW COLUMNS FROM `{$tableName}`");
             $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $this->log("Found columns: " . implode(", ", $columns));
 
             // Get primary key column name
+            $this->log("Getting primary key for {$tableName}");
             $stmt = $db->query("SHOW KEYS FROM `{$tableName}` WHERE Key_name = 'PRIMARY'");
             $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$primaryKey) {
+                $this->log("No primary key found for {$tableName}, skipping trigger creation");
                 return;
             }
             $idColumn = $primaryKey['Column_name'];
+            $this->log("Primary key column: {$idColumn}");
             
             // Build JSON object pairs for NEW
             $newJsonPairs = [];
@@ -63,6 +73,7 @@ class CoreTables002 {
             $oldJsonObject = implode(",\n        ", $oldJsonPairs);
 
             // Create INSERT trigger
+            $this->log("Creating INSERT trigger for {$tableName}");
             $db->exec("
                 CREATE TRIGGER trg_{$tableName}_insert_audit
                 AFTER INSERT ON `{$tableName}`
@@ -89,6 +100,7 @@ class CoreTables002 {
             ");
 
             // Create UPDATE trigger
+            $this->log("Creating UPDATE trigger for {$tableName}");
             $db->exec("
                 CREATE TRIGGER trg_{$tableName}_update_audit
                 AFTER UPDATE ON `{$tableName}`
@@ -119,6 +131,7 @@ class CoreTables002 {
             ");
 
             // Create DELETE trigger
+            $this->log("Creating DELETE trigger for {$tableName}");
             $db->exec("
                 CREATE TRIGGER trg_{$tableName}_delete_audit
                 BEFORE DELETE ON `{$tableName}`
@@ -144,7 +157,11 @@ class CoreTables002 {
                 )
             ");
 
+            $this->log("Successfully created all triggers for {$tableName}");
+
         } catch (\Exception $e) {
+            $this->log("ERROR creating triggers for {$tableName}: " . $e->getMessage());
+            $this->log("Stack trace: " . $e->getTraceAsString());
             throw $e;
         }
     }
@@ -442,6 +459,7 @@ class CoreTables002 {
                 'Role',
                 // Authentication tables
                 'Token',
+                'ApiAuth',
                 // Practice and related tables
                 'Practice',
                 'ReceptionistDetails',
@@ -515,6 +533,7 @@ class CoreTables002 {
 
             // Drop tables in reverse order of dependencies
             $tables = [
+                'ApiAuth',
                 'ApiTrace',
                 'AuditLog',
                 'PracticeUser',
