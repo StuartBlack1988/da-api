@@ -42,7 +42,7 @@ class AddApiAuthTriggers003 {
             // Create INSERT trigger
             $this->log("Creating INSERT trigger for ApiAuth");
             try {
-                $insertTrigger = "
+                $db->exec("
                     CREATE TRIGGER trg_ApiAuth_insert_audit
                     AFTER INSERT ON `ApiAuth`
                     FOR EACH ROW
@@ -72,9 +72,8 @@ class AddApiAuthTriggers003 {
                         ),
                         @current_ip_address,
                         @current_user_agent
-                    )";
-                $stmt = $db->prepare($insertTrigger);
-                $stmt->execute();
+                    )
+                ");
                 $this->log("INSERT trigger created successfully");
             } catch (\Exception $e) {
                 $this->log("ERROR creating INSERT trigger: " . $e->getMessage());
@@ -84,7 +83,7 @@ class AddApiAuthTriggers003 {
             // Create UPDATE trigger
             $this->log("Creating UPDATE trigger for ApiAuth");
             try {
-                $updateTrigger = "
+                $db->exec("
                     CREATE TRIGGER trg_ApiAuth_update_audit
                     AFTER UPDATE ON `ApiAuth`
                     FOR EACH ROW
@@ -126,9 +125,8 @@ class AddApiAuthTriggers003 {
                         ),
                         @current_ip_address,
                         @current_user_agent
-                    )";
-                $stmt = $db->prepare($updateTrigger);
-                $stmt->execute();
+                    )
+                ");
                 $this->log("UPDATE trigger created successfully");
             } catch (\Exception $e) {
                 $this->log("ERROR creating UPDATE trigger: " . $e->getMessage());
@@ -138,7 +136,7 @@ class AddApiAuthTriggers003 {
             // Create DELETE trigger
             $this->log("Creating DELETE trigger for ApiAuth");
             try {
-                $deleteTrigger = "
+                $db->exec("
                     CREATE TRIGGER trg_ApiAuth_delete_audit
                     BEFORE DELETE ON `ApiAuth`
                     FOR EACH ROW
@@ -168,9 +166,8 @@ class AddApiAuthTriggers003 {
                         ),
                         @current_ip_address,
                         @current_user_agent
-                    )";
-                $stmt = $db->prepare($deleteTrigger);
-                $stmt->execute();
+                    )
+                ");
                 $this->log("DELETE trigger created successfully");
             } catch (\Exception $e) {
                 $this->log("ERROR creating DELETE trigger: " . $e->getMessage());
