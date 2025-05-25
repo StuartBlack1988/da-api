@@ -85,15 +85,22 @@ $router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware
         return;
     }
     
-    // Handle API tracing
+    // Handle API tracing first
     error_log("Router: Calling ApiTraceMiddleware handle");
     $apiTraceMiddleware->handle();
     
-    // Handle API auth
+    // Then handle API auth
     error_log("Router: Calling ApiAuthMiddleware handle");
     if (!$apiAuthMiddleware->handle($_SERVER)) {
         error_log("Router: ApiAuthMiddleware failed");
-        exit(); // ApiAuthMiddleware already sets response code and message
+        // Don't exit here, let the response be captured by the trace middleware
+        http_response_code(401);
+        echo json_encode([
+            'error' => 'Invalid or expired API token',
+            'status' => 401,
+            'timestamp' => date('c')
+        ]);
+        return;
     }
     error_log("Router: Before middleware completed");
 });
