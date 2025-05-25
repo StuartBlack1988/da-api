@@ -69,13 +69,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $apiAuthController = new \DietitianAssist\ApiAuth\ApiAuthController($db);
 $apiAuthMiddleware = new \DietitianAssist\ApiAuth\ApiAuthMiddleware($apiAuthController);
 
-// Global middleware to check API token
-$router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware) {
+// Initialize API Trace middleware
+$apiTraceMiddleware = new \DietitianAssist\Middleware\ApiTraceMiddleware($db);
+
+// Global middleware to check API token and trace API calls
+$router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware, $apiTraceMiddleware) {
     // Skip API token check for OPTIONS requests (CORS preflight)
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         return;
     }
     
+    // Handle API tracing
+    $apiTraceMiddleware->handle();
+    
+    // Handle API auth
     if (!$apiAuthMiddleware->handle($_SERVER)) {
         exit(); // ApiAuthMiddleware already sets response code and message
     }
