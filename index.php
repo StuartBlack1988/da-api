@@ -71,21 +71,29 @@ $apiAuthMiddleware = new \DietitianAssist\ApiAuth\ApiAuthMiddleware($apiAuthCont
 
 // Initialize API Trace middleware
 $apiTraceMiddleware = new \DietitianAssist\Middleware\ApiTraceMiddleware($db);
+error_log("Router: ApiTraceMiddleware initialized");
 
 // Global middleware to check API token and trace API calls
 $router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware, $apiTraceMiddleware) {
+    error_log("Router: Before middleware called");
+    
     // Skip API token check for OPTIONS requests (CORS preflight)
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        error_log("Router: Skipping middleware for OPTIONS request");
         return;
     }
     
     // Handle API tracing
+    error_log("Router: Calling ApiTraceMiddleware handle");
     $apiTraceMiddleware->handle();
     
     // Handle API auth
+    error_log("Router: Calling ApiAuthMiddleware handle");
     if (!$apiAuthMiddleware->handle($_SERVER)) {
+        error_log("Router: ApiAuthMiddleware failed");
         exit(); // ApiAuthMiddleware already sets response code and message
     }
+    error_log("Router: Before middleware completed");
 });
 
 // Debug route - add this before loading other routes
