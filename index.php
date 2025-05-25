@@ -71,7 +71,9 @@ $apiAuthMiddleware = new \DietitianAssist\ApiAuth\ApiAuthMiddleware($apiAuthCont
 
 // Initialize API Trace middleware
 $apiTraceMiddleware = new \DietitianAssist\Middleware\ApiTraceMiddleware($db);
-error_log("Router: ApiTraceMiddleware initialized");
+$apiTraceMiddleware->setLogCallback(function($message) {
+    error_log($message);
+});
 
 // Global middleware to check API token and trace API calls
 $router->before('GET|POST|PUT|DELETE', '/.*', function() use ($apiAuthMiddleware, $apiTraceMiddleware) {
