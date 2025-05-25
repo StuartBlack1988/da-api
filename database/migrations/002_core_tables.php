@@ -442,7 +442,6 @@ class CoreTables002 {
                 'Role',
                 // Authentication tables
                 'Token',
-                'ApiAuth',
                 // Practice and related tables
                 'Practice',
                 'ReceptionistDetails',
@@ -452,9 +451,7 @@ class CoreTables002 {
                 'Privileges',
                 'UserPrivileges',
                 'PrivilegeProfile',
-                'PracticeUser',
-                // System tables
-                'SchemaVersion'
+                'PracticeUser'
             ];
 
             // Create triggers for each table
