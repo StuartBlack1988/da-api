@@ -459,7 +459,6 @@ class CoreTables002 {
                 'Role',
                 // Authentication tables
                 'Token',
-                'ApiAuth',
                 // Practice and related tables
                 'Practice',
                 'ReceptionistDetails',
