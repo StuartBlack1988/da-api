@@ -105,36 +105,54 @@ class ApiTraceMiddleware {
                     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
                     $this->log("ApiTraceMiddleware: Table columns: " . implode(", ", $columns));
                     
-                    $stmt = $this->db->prepare("
-                        INSERT INTO ApiTrace (
-                            userId,
-                            method,
-                            endpoint,
-                            requestBody,
-                            responseBody,
-                            statusCode,
-                            duration,
-                            ipAddress,
-                            userAgent
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ");
-                    
-                    $params = [
-                        $userId,
-                        $method,
-                        $endpoint,
-                        $requestBody,
-                        $responseBody,
-                        $statusCode,
-                        $duration,
-                        $ipAddress,
-                        $userAgent
-                    ];
-                    
-                    $this->log("ApiTraceMiddleware: Executing insert with params: " . json_encode($params));
-                    
-                    $stmt->execute($params);
-                    $this->log("ApiTraceMiddleware: Trace inserted successfully");
+                    try {
+                        $this->log("ApiTraceMiddleware: Starting SQL insert");
+                        
+                        $stmt = $this->db->prepare("
+                            INSERT INTO ApiTrace (
+                                userId,
+                                method,
+                                endpoint,
+                                requestBody,
+                                responseBody,
+                                statusCode,
+                                duration,
+                                ipAddress,
+                                userAgent
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        
+                        $params = [
+                            $userId,
+                            $method,
+                            $endpoint,
+                            $requestBody,
+                            $responseBody,
+                            $statusCode,
+                            $duration,
+                            $ipAddress,
+                            $userAgent
+                        ];
+                        
+                        $this->log("ApiTraceMiddleware: SQL statement prepared");
+                        $this->log("ApiTraceMiddleware: Parameters: " . json_encode($params));
+                        
+                        $result = $stmt->execute($params);
+                        $this->log("ApiTraceMiddleware: Execute result: " . ($result ? "true" : "false"));
+                        
+                        if ($result) {
+                            $this->log("ApiTraceMiddleware: Trace inserted successfully. Last insert ID: " . $this->db->lastInsertId());
+                        } else {
+                            $this->log("ApiTraceMiddleware: Failed to insert trace. Error info: " . json_encode($stmt->errorInfo()));
+                        }
+                    } catch (\PDOException $e) {
+                        $this->log("ApiTraceMiddleware: PDO Exception during insert: " . $e->getMessage());
+                        $this->log("ApiTraceMiddleware: SQL State: " . $e->getCode());
+                        $this->log("ApiTraceMiddleware: Stack trace: " . $e->getTraceAsString());
+                    } catch (\Exception $e) {
+                        $this->log("ApiTraceMiddleware: General Exception during insert: " . $e->getMessage());
+                        $this->log("ApiTraceMiddleware: Stack trace: " . $e->getTraceAsString());
+                    }
                 } catch (\Exception $e) {
                     $this->log("ApiTraceMiddleware: Error logging API trace: " . $e->getMessage());
                     $this->log("ApiTraceMiddleware: SQL State: " . $e->getCode());
