@@ -28,7 +28,6 @@ class AddApiAuthTriggers003 {
             $this->log("Setting session timeouts to 10 seconds");
             $db->exec("SET SESSION wait_timeout = 10");
             $db->exec("SET SESSION interactive_timeout = 10");
-            $db->exec("SET SESSION max_execution_time = 10000"); // 10 seconds in milliseconds
             $db->exec("SET SESSION innodb_lock_wait_timeout = 10");
 
             // Start transaction
